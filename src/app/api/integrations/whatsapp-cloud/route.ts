@@ -10,10 +10,6 @@ import {
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
 
-import { NextRequest } from 'next/server';
-import { authenticateRequest, apiError, validateRequired } from '@/lib/api-auth';
-// Migrated to Neon/Drizzle - imports are at top level;
-
 const STAGE_FOLLOWUP = 'd3d3031f-bc4b-44df-bd83-b1f07d7fbf85';
 const STAGE_ABOUT_TO_PAY = '0a58795e-31c1-4cdd-9cfa-408412d5ce7a';
 

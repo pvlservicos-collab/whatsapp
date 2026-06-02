@@ -10,10 +10,6 @@ import {
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
 
-import { NextRequest } from 'next/server'
-import { authenticateRequest, apiError } from '@/lib/api-auth'
-// Migrated to Neon/Drizzle - imports are at top level
-
 /**
  * GET /api/custom-fields
  * Lists all custom field definitions and categories for the organization.

@@ -10,10 +10,6 @@ import {
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
 
-import { NextRequest } from 'next/server'
-import { authenticateRequest, apiError, validateRequired } from '@/lib/api-auth'
-// Migrated to Neon/Drizzle - imports are at top level
-
 // Role hierarchy: lower number = higher rank
 const ROLE_HIERARCHY: Record<string, number> = {
     'master': 0,

@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { publishEvent, channels, events } from '@/lib/realtime'
@@ -9,10 +9,6 @@ import {
   organizations, setupTokens, leadStageHistory, integrationSecrets,
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
-
-import { NextRequest, NextResponse } from 'next/server'
-import { authenticateRequest, apiError } from '@/lib/api-auth'
-// Migrated to Neon/Drizzle - imports are at top level
 import type { LeadWithOwner, SearchHit, LeadMatchType } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'

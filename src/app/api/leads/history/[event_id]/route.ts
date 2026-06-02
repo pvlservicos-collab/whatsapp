@@ -10,10 +10,6 @@ import {
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
 
-import { NextRequest } from 'next/server'
-import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
-// Migrated to Neon/Drizzle - imports are at top level
-
 /**
  * PATCH /api/leads/history/[event_id]
  * Edita um evento do histórico
