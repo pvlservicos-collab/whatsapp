@@ -1,0 +1,206 @@
+'use client'
+
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { MagnifyingGlass, Phone, ChatText, User, SpinnerGap } from '@phosphor-icons/react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks'
+import { useRouter } from 'next/navigation'
+
+interface SearchResult {
+  id: string
+  type: 'lead' | 'message'
+  title: string
+  subtitle: string
+  leadId: string
+}
+
+export default function GlobalSearch() {
+  const { organizationId } = useAuth()
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const search = useCallback(async (term: string) => {
+    if (!organizationId || term.trim().length < 2) {
+      setResults([])
+      setOpen(false)
+      return
+    }
+
+    setLoading(true)
+    const searchTerm = `%${term.trim()}%`
+    const items: SearchResult[] = []
+
+    try {
+      // 1. Search leads by title (name) or phone
+      const { data: leads } = await supabase
+        .from('leads')
+        .select('id, title, phone, email')
+        .eq('organization_id', organizationId)
+        .is('deleted_at', null)
+        .or(`title.ilike.${searchTerm},phone.ilike.${searchTerm}`)
+        .limit(8)
+
+      if (leads) {
+        for (const lead of leads) {
+          items.push({
+            id: `lead-${lead.id}`,
+            type: 'lead',
+            title: lead.title || lead.phone || 'Sem nome',
+            subtitle: lead.phone || lead.email || '',
+            leadId: lead.id,
+          })
+        }
+      }
+
+      // 2. Search messages (lead_activities) by content
+      const { data: activities } = await supabase
+        .from('lead_activities')
+        .select('id, lead_id, content, type, leads!inner(id, title, phone)')
+        .eq('organization_id', organizationId)
+        .ilike('content', searchTerm)
+        .in('type', ['whatsapp', 'email', 'note'])
+        .order('created_at', { ascending: false })
+        .limit(6)
+
+      if (activities) {
+        // Deduplicate by lead_id — show most recent match per lead
+        const seenLeads = new Set(items.map(i => i.leadId))
+        for (const act of activities) {
+          const lead = act.leads as any
+          if (!lead) continue
+          const msgPreview = (act.content || '').substring(0, 60) + ((act.content || '').length > 60 ? '...' : '')
+          items.push({
+            id: `msg-${act.id}`,
+            type: 'message',
+            title: lead.title || lead.phone || 'Lead',
+            subtitle: msgPreview,
+            leadId: lead.id,
+          })
+        }
+      }
+
+      setResults(items)
+      setOpen(items.length > 0)
+    } catch (err) {
+      console.error('Search error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [organizationId])
+
+  const handleChange = (value: string) => {
+    setQuery(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (value.trim().length < 2) {
+      setResults([])
+      setOpen(false)
+      return
+    }
+    debounceRef.current = setTimeout(() => search(value), 300)
+  }
+
+  const handleSelect = (result: SearchResult) => {
+    setQuery('')
+    setResults([])
+    setOpen(false)
+    router.push(`/chat?leadId=${result.leadId}`)
+  }
+
+  const leadResults = results.filter(r => r.type === 'lead')
+  const messageResults = results.filter(r => r.type === 'message')
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <SpinnerGap className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin transition-opacity ${loading ? 'opacity-100' : 'opacity-0'}`} weight="bold" />
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => results.length > 0 && setOpen(true)}
+        placeholder="Buscar leads..."
+        className="w-56 pl-9 pr-8 py-1.5 bg-gray-100 border-none rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+      />
+
+      {/* Results Dropdown */}
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-100 rounded-xl shadow-xl shadow-gray-200/60 z-50 max-h-[400px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+          {leadResults.length > 0 && (
+            <div>
+              <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                Leads
+              </p>
+              {leadResults.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => handleSelect(r)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    {r.subtitle && r.subtitle.match(/\d/) ? (
+                      <Phone size={14} className="text-blue-600" weight="bold" />
+                    ) : (
+                      <User size={14} className="text-blue-600" weight="bold" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{r.title}</p>
+                    {r.subtitle && (
+                      <p className="text-xs text-gray-400 truncate">{r.subtitle}</p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {messageResults.length > 0 && (
+            <div>
+              {leadResults.length > 0 && <div className="h-px bg-gray-100 mx-3" />}
+              <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                Mensagens
+              </p>
+              {messageResults.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => handleSelect(r)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
+                    <ChatText size={14} className="text-green-600" weight="bold" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{r.title}</p>
+                    <p className="text-xs text-gray-400 truncate">{r.subtitle}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {results.length === 0 && !loading && (
+            <div className="px-4 py-6 text-center text-sm text-gray-400">
+              Nenhum resultado encontrado
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

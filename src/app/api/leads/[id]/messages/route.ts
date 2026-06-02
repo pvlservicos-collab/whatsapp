@@ -1,0 +1,184 @@
+import { NextRequest } from 'next/server'
+import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
+import { db } from '@/lib/db'
+import { publishEvent, channels, events } from '@/lib/realtime'
+import {
+  leads, leadActivities, pipelineStages, organizationMembers, profiles,
+} from '@/lib/schema'
+import { eq, and, isNull, desc, asc, ilike, sql } from 'drizzle-orm'
+
+/**
+ * GET /api/leads/[id]/messages
+ * Lista mensagens da conversa do lead (whatsapp, note, email, system)
+ */
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+
+    const [lead] = await db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.organizationId, auth.organizationId),
+          isNull(leads.deletedAt),
+          isUuid ? eq(leads.id, id) : eq(leads.phone, decodeURIComponent(id))
+        )
+      )
+      .limit(1)
+
+    if (!lead) return apiError(404, 'Lead não encontrado.')
+
+    const data = await db
+      .select({
+        id: leadActivities.id,
+        type: leadActivities.type,
+        content: leadActivities.content,
+        metadata: leadActivities.metadata,
+        actor_member_id: leadActivities.actorMemberId,
+        created_at: leadActivities.createdAt,
+        actor: {
+          id: organizationMembers.id,
+          profiles: { full_name: profiles.fullName, avatar_url: profiles.avatarUrl },
+        },
+      })
+      .from(leadActivities)
+      .leftJoin(organizationMembers, eq(organizationMembers.id, leadActivities.actorMemberId))
+      .leftJoin(profiles, eq(profiles.id, organizationMembers.userId))
+      .where(
+        and(
+          eq(leadActivities.organizationId, auth.organizationId),
+          eq(leadActivities.leadId, lead.id),
+          sql`${leadActivities.type} IN ('whatsapp','note','email','system')`
+        )
+      )
+      .orderBy(asc(leadActivities.createdAt))
+
+    return Response.json({ data })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
+}
+
+/**
+ * POST /api/leads/[id]/messages
+ * Envia uma mensagem no chat do lead
+ */
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
+    const body = await req.json()
+
+    const requiredError = validateRequired(body, ['content', 'type', 'source'])
+    if (requiredError) return apiError(400, requiredError)
+    const sourceError = validateSource(body.source)
+    if (sourceError) return apiError(400, sourceError)
+
+    const validTypes = ['whatsapp', 'note', 'email', 'system']
+    if (!validTypes.includes(body.type)) {
+      return apiError(400, `Tipo inválido: "${body.type}". Valores aceitos: ${validTypes.join(', ')}`)
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    let decodedPhone = ''
+
+    let leadQuery = db
+      .select({ id: leads.id, title: leads.title, phone: leads.phone })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.organizationId, auth.organizationId),
+          isNull(leads.deletedAt),
+          isUuid ? eq(leads.id, id) : (() => { decodedPhone = decodeURIComponent(id); return eq(leads.phone, decodedPhone) })()
+        )
+      )
+      .limit(1)
+
+    const [lead] = await leadQuery
+    let actualLeadId = lead?.id
+
+    if (!actualLeadId) {
+      if (isUuid) return apiError(404, 'Lead não encontrado.')
+
+      // Auto-criar lead pelo telefone
+      const [firstStage] = await db
+        .select({ id: pipelineStages.id })
+        .from(pipelineStages)
+        .where(
+          and(
+            eq(pipelineStages.organizationId, auth.organizationId),
+            isNull(pipelineStages.deletedAt)
+          )
+        )
+        .orderBy(asc(pipelineStages.rank))
+        .limit(1)
+
+      const [newLead] = await db
+        .insert(leads)
+        .values({
+          organizationId: auth.organizationId,
+          title: body.sender_name || decodedPhone,
+          phone: decodedPhone,
+          stageId: firstStage?.id || null,
+          lastActivityAt: new Date(),
+          customAttributes: { source: body.source },
+        })
+        .returning({ id: leads.id })
+
+      actualLeadId = newLead.id
+    }
+
+    const direction = body.direction || 'outbound'
+    const metadata: Record<string, any> = {
+      source: body.source,
+      direction,
+    }
+    if (body.sender_name) metadata.sender_name = body.sender_name
+    if (body.reply_to_message_id) metadata.reply_to_message_id = body.reply_to_message_id
+    if (body.media_url) metadata.media_url = body.media_url
+    if (body.media_type) metadata.media_type = body.media_type
+
+    const [activity] = await db
+      .insert(leadActivities)
+      .values({
+        organizationId: auth.organizationId,
+        leadId: actualLeadId,
+        actorMemberId: auth.memberId || null,
+        type: body.type,
+        content: body.content,
+        metadata,
+      })
+      .returning({ id: leadActivities.id, content: leadActivities.content, createdAt: leadActivities.createdAt })
+
+    // Atualizar lead
+    const updates: any = {
+      lastMessageContent: body.content,
+      lastMessageSenderType: direction === 'inbound' ? 'lead' : body.source,
+      lastActivityAt: new Date(),
+      lastActivityType: body.type,
+      lastActivityByMemberId: auth.memberId || null,
+      isUnread: direction === 'inbound',
+    }
+
+    if (body.sender_name && lead) {
+      const title = lead.title?.trim() || ''
+      if (!title || title === 'Desconhecido' || title === lead.phone || title === decodedPhone) {
+        updates.title = body.sender_name
+      }
+    }
+
+    await db.update(leads).set(updates).where(eq(leads.id, actualLeadId))
+
+    // Publicar evento realtime
+    await publishEvent(channels.leadActivities(actualLeadId), events.ACTIVITY_CREATED, { id: activity.id })
+    await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id: actualLeadId })
+
+    return Response.json(activity, { status: 201 })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
+}

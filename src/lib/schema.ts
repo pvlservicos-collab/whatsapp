@@ -1,0 +1,268 @@
+/**
+ * Drizzle ORM Schema — Atlas Eye CRM
+ * Espelha exatamente as migrations SQL do Supabase (database/001_init_schema.sql + seguintes)
+ * compatível com Neon (PostgreSQL)
+ */
+import {
+  pgTable, pgEnum, uuid, text, boolean, integer, numeric,
+  timestamp, jsonb, index, uniqueIndex, foreignKey, primaryKey,
+} from 'drizzle-orm/pg-core'
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+export const memberStatusEnum = pgEnum('member_status', ['active', 'invited', 'disabled'])
+export const integrationStatusEnum = pgEnum('integration_status', ['active', 'disabled'])
+export const leadActivityTypeEnum = pgEnum('lead_activity_type', ['note', 'call', 'whatsapp', 'email', 'system'])
+export const customFieldTypeEnum = pgEnum('custom_field_type', ['text', 'number', 'date', 'bool', 'select', 'multi_select', 'json'])
+
+// ── Tiers & Organizations ─────────────────────────────────────────────────────
+export const tiers = pgTable('tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  maxUsers: integer('max_users'),
+  canUseCustomFields: boolean('can_use_custom_fields').default(false),
+  permissions: jsonb('permissions').default({}),
+})
+
+export const organizations = pgTable('organizations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  tierId: uuid('tier_id').references(() => tiers.id),
+  timezone: text('timezone').default('UTC'),
+  logoUrl: text('logo_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+// ── Auth & Profiles ───────────────────────────────────────────────────────────
+// Substitui auth.users do Supabase — gerenciado pelo NextAuth + bcrypt
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const profiles = pgTable('profiles', {
+  id: uuid('id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  fullName: text('full_name'),
+  avatarUrl: text('avatar_url'),
+  timezone: text('timezone'),
+  isSuperadmin: boolean('is_superadmin').default(false),
+})
+
+// Tabela de sessões NextAuth (necessária para estratégia database)
+export const sessions = pgTable('sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── RBAC ──────────────────────────────────────────────────────────────────────
+export const organizationRoles = pgTable('organization_roles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  permissions: jsonb('permissions').default({}),
+  version: integer('version').default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const organizationMembers = pgTable('organization_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  userId: uuid('user_id').notNull().references(() => profiles.id),
+  roleId: uuid('role_id').notNull(),
+  status: memberStatusEnum('status').default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+// ── Pipelines ─────────────────────────────────────────────────────────────────
+export const pipelines = pgTable('pipelines', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  settings: jsonb('settings').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+export const pipelineStages = pgTable('pipeline_stages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull(),
+  pipelineId: uuid('pipeline_id').notNull().references(() => pipelines.id),
+  name: text('name').notNull(),
+  color: text('color'),
+  rank: numeric('rank', { precision: 20, scale: 6 }).notNull(),
+  targetVolume: integer('target_volume'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+// ── Integrations ──────────────────────────────────────────────────────────────
+export const integrations = pgTable('integrations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  type: text('type'),
+  config: jsonb('config').default({}),
+  status: integrationStatusEnum('status').default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+// Segredos das integrações (substitui vault do Supabase)
+export const integrationSecrets = pgTable('integration_secrets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  integrationId: uuid('integration_id').notNull().references(() => integrations.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').notNull(),
+  secret: jsonb('secret').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── Leads ─────────────────────────────────────────────────────────────────────
+export const leads = pgTable('leads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  stageId: uuid('stage_id'),
+  integrationId: uuid('integration_id'),
+  ownerMemberId: uuid('owner_member_id'),
+  title: text('title').notNull(),
+  externalId: text('external_id'),
+  email: text('email'),
+  phone: text('phone'),
+  avatarUrl: text('avatar_url'),
+  aiInterestLevel: text('ai_interest_level'),
+  aiNextActionShort: text('ai_next_action_short'),
+  customAttributes: jsonb('custom_attributes').default({}),
+  lastMessageContent: text('last_message_content'),
+  lastMessageSenderType: text('last_message_sender_type'),
+  lastActivityAt: timestamp('last_activity_at', { withTimezone: true }),
+  lastActivityType: leadActivityTypeEnum('last_activity_type'),
+  lastActivityByMemberId: uuid('last_activity_by_member_id'),
+  isGroup: boolean('is_group').default(false),
+  isUnread: boolean('is_unread').default(false),
+  value: numeric('value', { precision: 15, scale: 2 }),
+  goals: jsonb('goals').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+export const tags = pgTable('tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  color: text('color').default('#6366f1'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const leadTags = pgTable('lead_tags', {
+  leadId: uuid('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  tagId: uuid('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.leadId, t.tagId] }),
+}))
+
+// ── Lead Activities ───────────────────────────────────────────────────────────
+export const leadActivities = pgTable('lead_activities', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  leadId: uuid('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  actorMemberId: uuid('actor_member_id'),
+  type: leadActivityTypeEnum('type').notNull(),
+  content: text('content'),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── Custom Fields ─────────────────────────────────────────────────────────────
+export const customFieldCategories = pgTable('custom_field_categories', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  rank: numeric('rank', { precision: 20, scale: 6 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const customFieldDefinitions = pgTable('custom_field_definitions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  categoryId: uuid('category_id').references(() => customFieldCategories.id),
+  name: text('name').notNull(),
+  fieldKey: text('field_key').notNull(),
+  fieldType: customFieldTypeEnum('field_type').notNull(),
+  options: jsonb('options').default([]),
+  isRequired: boolean('is_required').default(false),
+  rank: numeric('rank', { precision: 20, scale: 6 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+// ── Lead History ──────────────────────────────────────────────────────────────
+export const leadStageHistory = pgTable('lead_stage_history', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull(),
+  leadId: uuid('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  fromStageId: uuid('from_stage_id'),
+  toStageId: uuid('to_stage_id'),
+  movedByMemberId: uuid('moved_by_member_id'),
+  movedAt: timestamp('moved_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── API Tokens ────────────────────────────────────────────────────────────────
+export const apiTokens = pgTable('api_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  isActive: boolean('is_active').default(true),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export const notifications = pgTable('notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  recipientMemberId: uuid('recipient_member_id').notNull(),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  body: text('body'),
+  metadata: jsonb('metadata').default({}),
+  isRead: boolean('is_read').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── Setup Tokens (para criação inicial de workspace) ──────────────────────────
+export const setupTokens = pgTable('setup_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  token: text('token').notNull().unique(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ── Webhook Logs ──────────────────────────────────────────────────────────────
+export const webhookLogs = pgTable('webhook_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  payload: jsonb('payload'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})

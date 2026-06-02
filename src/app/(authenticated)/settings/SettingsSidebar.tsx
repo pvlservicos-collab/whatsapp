@@ -1,0 +1,50 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import {
+    Buildings,
+    UsersThree,
+    TreeStructure,
+    PencilSimpleLine,
+    Tag,
+    ShareNetwork,
+    Bell,
+} from '@phosphor-icons/react'
+
+const SETTINGS_SECTIONS = [
+    { label: 'Perfil da Organização', href: '/settings/organization', icon: Buildings },
+    { label: 'Membros e Permissões', href: '/settings/members', icon: UsersThree },
+    { label: 'Configurações do Pipeline', href: '/settings/pipelines', icon: TreeStructure },
+    { label: 'Campos Customizados', href: '/settings/custom-fields', icon: PencilSimpleLine },
+    { label: 'Tags', href: '/settings/tags', icon: Tag },
+    { label: 'Integrações', href: '/settings/integrations', icon: ShareNetwork },
+    { label: 'Notificações', href: '/settings/notifications', icon: Bell },
+]
+
+export default function SettingsSidebar() {
+    const pathname = usePathname()
+
+    return (
+        <nav className="space-y-1">
+            {SETTINGS_SECTIONS.map((section) => {
+                const isActive = pathname === section.href || pathname.startsWith(`${section.href}/`)
+                const Icon = section.icon
+
+                return (
+                    <Link
+                        key={section.href}
+                        href={section.href}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                    >
+                        <Icon size={20} weight={isActive ? "fill" : "regular"} className={isActive ? "text-blue-600" : "text-gray-500"} />
+                        {section.label}
+                    </Link>
+                )
+            })}
+        </nav>
+    )
+}

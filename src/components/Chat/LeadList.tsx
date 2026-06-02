@@ -1,0 +1,265 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { LeadWithOwner, SearchHit } from '@/lib/types'
+import { MagnifyingGlass, PushPin } from '@phosphor-icons/react'
+import LoadingSpinner from '@/components/Shared/LoadingSpinner'
+import { useSession } from 'next-auth/react'
+import { useLeadSearch } from '@/hooks/useLeadSearch'
+import LeadListItem from './LeadListItem'
+
+interface LeadListProps {
+  leads: LeadWithOwner[]
+  selectedLeadId?: string
+  onSelectLead: (lead: LeadWithOwner) => void
+  onUpdateLead?: (leadId: string, updates: Partial<LeadWithOwner>) => void
+  loading: boolean
+}
+
+const WEEKDAYS_PT = [
+  'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+  'Quinta-feira', 'Sexta-feira', 'Sábado',
+]
+
+function formatRelativeTime(dateString?: string) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const today = new Date()
+
+  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const diffTime = todayDay.getTime() - dateDay.getTime()
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const timeStr = `${hours}:${minutes}`
+
+  if (diffDays === 0) return timeStr
+  if (diffDays === 1) return `Ontem ${timeStr}`
+
+  if (diffDays >= 2 && diffDays <= 6) {
+    return `${WEEKDAYS_PT[date.getDay()]} ${timeStr}`
+  }
+
+  const d = String(date.getDate()).padStart(2, '0')
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const y = date.getFullYear()
+  return `${d}/${m}/${y}`
+}
+
+interface ContextMenuState {
+  visible: boolean
+  x: number
+  y: number
+  lead: LeadWithOwner | null
+}
+
+export default function LeadList({
+  leads,
+  selectedLeadId,
+  onSelectLead,
+  onUpdateLead,
+  loading,
+}: LeadListProps) {
+  const [search, setSearch] = useState('')
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false, x: 0, y: 0, lead: null
+  })
+  const menuRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const INITIAL_DISPLAY = 20
+  const DISPLAY_INCREMENT = 15
+  const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY)
+
+  const { results: searchResults, loading: searching } = useLeadSearch(search)
+
+  // Infinite scroll
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el
+      if (scrollHeight - scrollTop - clientHeight < 200) {
+        setDisplayLimit(prev => prev + DISPLAY_INCREMENT)
+      }
+    }
+
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Close context menu on outside click or scroll
+  useEffect(() => {
+    const handleClose = () => setContextMenu(prev => ({ ...prev, visible: false }))
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClose)
+      document.addEventListener('scroll', handleClose, true)
+      return () => {
+        document.removeEventListener('click', handleClose)
+        document.removeEventListener('scroll', handleClose, true)
+      }
+    }
+  }, [contextMenu.visible])
+
+  const markLeadAsRead = useCallback((leadId: string) => {
+    const lead = leads.find(l => l.id === leadId)
+    if (lead?.is_unread) {
+      // Optimistic Update immediately to prevent duplicate network requests
+      if (onUpdateLead) {
+        onUpdateLead(lead.id, { is_unread: false })
+      }
+
+      // Send network request without awaiting here to avoid blocking
+      supabase.from('leads').update({ is_unread: false }).eq('id', lead.id).then()
+    }
+  }, [leads, onUpdateLead])
+
+  // Mark as read whenever the selected lead changes and has unread messages
+  useEffect(() => {
+    if (selectedLeadId && document.hasFocus()) {
+      markLeadAsRead(selectedLeadId)
+    }
+  }, [selectedLeadId, markLeadAsRead])
+
+  // Mark as read when the window gains focus (if reading currently)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (selectedLeadId) {
+        markLeadAsRead(selectedLeadId)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [selectedLeadId, markLeadAsRead])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, lead: LeadWithOwner) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY, lead })
+  }, [])
+
+  const handleTogglePin = useCallback(async () => {
+    if (!contextMenu.lead) return
+    const lead = contextMenu.lead
+    const newPinned = !lead.is_pinned
+
+    // Optimistic update
+    if (onUpdateLead) {
+      onUpdateLead(lead.id, { is_pinned: newPinned })
+    }
+
+    setContextMenu(prev => ({ ...prev, visible: false }))
+
+    try {
+      await supabase
+        .from('leads')
+        .update({ is_pinned: newPinned })
+        .eq('id', lead.id)
+    } catch (err) {
+      console.error('Failed to toggle pin', err)
+      // Revert
+      if (onUpdateLead) {
+        onUpdateLead(lead.id, { is_pinned: !newPinned })
+      }
+    }
+  }, [contextMenu.lead, onUpdateLead])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <LoadingSpinner text="Carregando leads..." />
+      </div>
+    )
+  }
+
+  const handleLeadClick = async (lead: LeadWithOwner) => {
+    onSelectLead(lead)
+    markLeadAsRead(lead.id)
+  }
+
+  const filteredHits: SearchHit[] = [...searchResults].sort((a, b) => {
+    const ap = !!a.lead.is_pinned
+    const bp = !!b.lead.is_pinned
+    if (ap !== bp) return ap ? -1 : 1
+    const rank = (h: SearchHit) => (h.matchType === 'message' ? 1 : 0)
+    if (rank(a) !== rank(b)) return rank(a) - rank(b)
+    const ta = new Date(a.lead.last_activity_at || a.lead.created_at).getTime()
+    const tb = new Date(b.lead.last_activity_at || b.lead.created_at).getTime()
+    return tb - ta
+  })
+
+  const visibleHits = filteredHits.slice(0, displayLimit)
+
+  return (
+    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+      {/* Search Bar */}
+      <div className="p-3 border-b border-gray-100">
+        <div className="relative">
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar leads..."
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-shadow"
+          />
+        </div>
+      </div>
+
+      {/* Leads List */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+        {filteredHits.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+            {searching ? 'Buscando…' : 'Nenhum lead encontrado'}
+          </div>
+        ) : (
+          <div className="flex flex-col min-h-full">
+            {visibleHits.map((hit) => {
+              const lead = hit.lead
+              const isSelected = selectedLeadId === lead.id
+              const timeStr = formatRelativeTime(lead.last_activity_at || lead.created_at)
+
+              return (
+                <LeadListItem
+                  key={lead.id}
+                  lead={lead}
+                  isSelected={isSelected}
+                  timeStr={timeStr}
+                  onClick={handleLeadClick}
+                  onContextMenu={handleContextMenu}
+                  hit={hit}
+                  query={search}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+        >
+          <button
+            onClick={handleTogglePin}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+          >
+            <PushPin size={16} weight={contextMenu.lead?.is_pinned ? 'regular' : 'fill'} className={contextMenu.lead?.is_pinned ? 'text-gray-400' : 'text-blue-500 -rotate-45'} />
+            {contextMenu.lead?.is_pinned ? 'Desafixar conversa' : 'Fixar conversa'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}

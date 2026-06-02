@@ -1,0 +1,116 @@
+'use client'
+
+/**
+ * useLeadActivities — substitui queries diretas ao Supabase
+ * Busca atividades via API + Pusher para realtime
+ */
+import { useState, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
+import { LeadActivityWithActor } from '@/lib/types'
+import { usePusherChannel } from './usePusher'
+
+export function useLeadActivities(organizationId: string, leadId: string) {
+  const { data: session } = useSession()
+  const [activities, setActivities] = useState<LeadActivityWithActor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchActivities = useCallback(async (showLoading = true) => {
+    if (!organizationId || !leadId || !session) return
+    try {
+      if (showLoading) setLoading(true)
+      const res = await fetch(`/api/leads/${leadId}/messages`)
+      if (!res.ok) throw new Error('Falha ao carregar atividades')
+      const json = await res.json()
+
+      const filtered = (json.data || []).filter((a: any) => {
+        if (a.type === 'system' && a.metadata?.source === 'custom_field') return false
+        return true
+      })
+      setActivities(filtered)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro desconhecido')
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }, [organizationId, leadId, session])
+
+  useEffect(() => {
+    fetchActivities(true)
+  }, [fetchActivities])
+
+  // Realtime via Pusher
+  usePusherChannel(`lead-${leadId}`, {
+    'activity.created': () => {
+      setActivities((prev) => prev.filter((a) => !a.metadata?.is_optimistic))
+      fetchActivities(false)
+    },
+    'activity.updated': () => fetchActivities(false),
+  })
+
+  const sendHumanMessage = async (
+    content: string,
+    type: 'whatsapp' | 'note' | 'system' = 'whatsapp',
+    memberId?: string,
+    replyMessageId?: string,
+    replyPreview?: { text: string; sender: string }
+  ) => {
+    if (!content.trim()) return
+
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`
+    const optimisticMsg: LeadActivityWithActor = {
+      id: tempId,
+      organization_id: organizationId,
+      lead_id: leadId,
+      type,
+      content,
+      actor_member_id: memberId || null,
+      metadata: {
+        direction: 'outbound',
+        source: 'human',
+        status: 'sent',
+        sender_name: 'Atendente',
+        is_optimistic: true,
+        ...(replyMessageId && replyPreview
+          ? { quoted_text: replyPreview.text, quoted_sender: replyPreview.sender, quoted_stanza_id: replyMessageId }
+          : {}),
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      actor: null,
+    }
+    setActivities((prev) => [...prev, optimisticMsg])
+
+    try {
+      const body: any = {
+        content,
+        type,
+        source: 'human',
+        direction: 'outbound',
+        sender_name: 'Atendente',
+      }
+      if (replyMessageId) body.reply_to_message_id = replyMessageId
+
+      const res = await fetch(`/api/leads/${leadId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Falha ao enviar mensagem')
+      }
+
+      // Remove optimistic, realtime vai trazer o real
+      setActivities((prev) => prev.filter((a) => a.id !== tempId))
+    } catch (err) {
+      // Revert optimistic on error
+      setActivities((prev) => prev.filter((a) => a.id !== tempId))
+      throw err
+    }
+  }
+
+  return { activities, loading, error, sendHumanMessage, refresh: fetchActivities }
+}
