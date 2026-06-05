@@ -37,3 +37,6 @@ tsconfig.tsbuildinfo
 # Misc
 .cache
 .vercel
+
+.vercel
+.env*

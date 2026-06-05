@@ -6,7 +6,6 @@ import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline } from '@/
 import { useLeadsContext } from '@/contexts/LeadsContext'
 import { LeadList, ChatWindow, LeadDetailsSidebar } from '@/components/Chat'
 import { LeadWithOwner } from '@/lib/types'
-import { supabase } from '@/lib/supabase'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 
@@ -45,19 +44,11 @@ export default function ChatPage() {
 
     let cancelled = false
     ;(async () => {
-      const { data } = await supabase
-        .from('leads')
-        .select(`
-          *,
-          lead_tags(tag_id, tag:tags(id, name, color)),
-          integration:integrations(id, name, type),
-          stage:pipeline_stages(id, pipeline_id, name),
-          owner:organization_members!fk_leads_owner(id, profiles(full_name, avatar_url))
-        `)
-        .eq('id', leadIdFromUrl)
-        .is('deleted_at', null)
-        .maybeSingle()
-      if (!cancelled && data) setSelectedLead(data as LeadWithOwner)
+      const res = await fetch(`/api/leads/${leadIdFromUrl}`)
+      if (res.ok) {
+        const { data } = await res.json()
+        if (!cancelled && data) setSelectedLead(data as LeadWithOwner)
+      }
     })()
     return () => { cancelled = true }
   }, [leadIdFromUrl, globalLeads, selectedLead?.id])
@@ -106,19 +97,10 @@ export default function ChatPage() {
 
       // Fallback: Fetch from database if we don't have it in memory
       if (!firstStageId) {
-        const { supabase } = await import('@/lib/supabase')
-        const { data: newStages, error } = await supabase
-          .from('pipeline_stages')
-          .select('id')
-          .eq('pipeline_id', newPipelineId)
-          .is('deleted_at', null)
-          .order('rank', { ascending: true })
-          .limit(1)
-
-        if (error || !newStages || newStages.length === 0) {
-          console.error('Failed to fetch stages for new pipeline:', error)
-          return
-        }
+        const stagesRes = await fetch(`/api/pipelines/${newPipelineId}/stages`)
+        if (!stagesRes.ok) { console.error('Failed to fetch stages'); return }
+        const { data: newStages } = await stagesRes.json()
+        if (!newStages || newStages.length === 0) return
         firstStageId = newStages[0].id
       }
 
@@ -167,7 +149,7 @@ export default function ChatPage() {
 
   const handleChatMessageSent = useCallback((content: string) => {
     const memberId = currentOrganization?.id || ''
-    const fullName = profileName || user?.user_metadata?.full_name || user?.email || ''
+    const fullName = profileName || user?.name || user?.email || ''
     setLeads(prev => prev.map(l => {
       if (l.id === displayedLead?.id) {
         return {
@@ -176,7 +158,7 @@ export default function ChatPage() {
           last_message_sender_type: 'human' as const,
           last_activity_at: new Date().toISOString(),
           owner_member_id: memberId || l.owner_member_id,
-          owner: memberId ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.user_metadata?.avatar_url } } : l.owner
+          owner: memberId ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.image || undefined } } : l.owner
         }
       }
       return l
@@ -189,7 +171,7 @@ export default function ChatPage() {
         last_message_sender_type: 'human' as const,
         last_activity_at: new Date().toISOString(),
         owner_member_id: memberId || prev.owner_member_id,
-        owner: memberId ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.user_metadata?.avatar_url } } : prev.owner
+        owner: memberId ? { id: memberId, profiles: { full_name: fullName, avatar_url: user?.image || undefined } } : prev.owner
       } : prev)
     }
   }, [displayedLead, selectedLead, setLeads, currentOrganization, user])

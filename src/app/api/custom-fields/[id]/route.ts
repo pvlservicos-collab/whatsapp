@@ -1,63 +1,82 @@
 import { NextRequest } from 'next/server'
-import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
+import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
-import { publishEvent, channels, events } from '@/lib/realtime'
-import {
-  leads, leadActivities, leadTags, tags, organizationMembers, profiles,
-  pipelineStages, pipelines, integrations, organizationRoles,
-  customFieldDefinitions, customFieldCategories, notifications, apiTokens,
-  organizations, setupTokens, leadStageHistory, integrationSecrets,
-} from '@/lib/schema'
-import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
+import { customFieldDefinitions, customFieldCategories } from '@/lib/schema'
+import { eq, and, isNull } from 'drizzle-orm'
 
-export async function GET(
-    req: NextRequest,
-    context: any
-) {
-    try {
-        const id = context.params?.id || context.params?.id;
+type Params = { params: Promise<{ id: string }> }
 
-        if (!id) {
-            return apiError(400, 'Custom Field ID is required')
-        }
+export async function GET(req: NextRequest, { params }: Params) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
 
-        const auth = await authenticateRequest(req)
-        // db is imported globally
+    const [field] = await db.select().from(customFieldDefinitions)
+      .where(and(eq(customFieldDefinitions.id, id), eq(customFieldDefinitions.organizationId, auth.organizationId), isNull(customFieldDefinitions.deletedAt)))
+      .limit(1)
 
-        const { data, error } = await supabase
-            .from('custom_field_definitions')
-            .select('id, name, field_type, schema, key')
-            .eq('organization_id', auth.organizationId)
-            .eq('id', id)
-            .is('deleted_at', null)
-            .single()
+    if (!field) return apiError(404, 'Custom field not found')
+    return Response.json({ data: field })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
+}
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                return apiError(404, 'Custom field not found')
-            }
-            return apiError(500, error.message)
-        }
+export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
+    const body = await req.json()
+    const type = req.nextUrl.searchParams.get('type') || body.type
 
-        // Extract options if it's a select or multi_select
-        let options: string[] = []
-        if (data && data.schema && typeof data.schema === 'object') {
-            const schemaObj = data.schema as Record<string, any>;
-            if (Array.isArray(schemaObj.options)) {
-                options = schemaObj.options;
-            } else if (Array.isArray(schemaObj.choices)) {
-                options = schemaObj.choices;
-            }
-        }
-
-        return Response.json({
-            id: data.id,
-            name: data.name,
-            key: data.key,
-            type: data.field_type,
-            options: options
-        })
-    } catch (err: any) {
-        return apiError(err.status || 500, err.message || 'Internal error')
+    if (type === 'category') {
+      const updates: any = {}
+      if (body.name !== undefined) updates.name = body.name
+      if (body.rank !== undefined) updates.rank = body.rank
+      const [updated] = await db.update(customFieldCategories)
+        .set(updates)
+        .where(and(eq(customFieldCategories.id, id), eq(customFieldCategories.organizationId, auth.organizationId)))
+        .returning()
+      return Response.json({ data: updated })
     }
+
+    const updates: any = {}
+    if (body.name !== undefined) updates.name = body.name
+    if (body.field_type !== undefined) updates.fieldType = body.field_type
+    if (body.category_id !== undefined) updates.categoryId = body.category_id
+    if (body.rank !== undefined) updates.rank = body.rank
+    if (body.is_required !== undefined) updates.isRequired = body.is_required
+    if (body.options !== undefined) updates.options = body.options
+
+    const [updated] = await db.update(customFieldDefinitions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(customFieldDefinitions.id, id), eq(customFieldDefinitions.organizationId, auth.organizationId)))
+      .returning()
+
+    return Response.json({ data: updated })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
+    const type = req.nextUrl.searchParams.get('type')
+
+    if (type === 'category') {
+      await db.delete(customFieldCategories)
+        .where(and(eq(customFieldCategories.id, id), eq(customFieldCategories.organizationId, auth.organizationId)))
+      return Response.json({ success: true })
+    }
+
+    await db.update(customFieldDefinitions)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(customFieldDefinitions.id, id), eq(customFieldDefinitions.organizationId, auth.organizationId)))
+
+    return Response.json({ success: true })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
 }

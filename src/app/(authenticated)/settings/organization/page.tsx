@@ -43,12 +43,11 @@ export default function ProfileSettingsPage() {
         if (!organizationId || !isAdmin) return
         setTokensLoading(true)
         try {
-            const { data, error } = await supabase
-                .from('api_tokens')
-                .select('id, name, token_prefix, is_active, created_at, last_used_at, revoked_at')
-                .eq('organization_id', organizationId)
-                .order('created_at', { ascending: false })
-            if (!error && data) setTokens(data)
+            const res = await fetch('/api/tokens')
+            if (res.ok) {
+                const { data } = await res.json()
+                setTokens((data || []).map((t: any) => ({ ...t, token_prefix: t.name?.slice(0, 12) || 'atl_...' })))
+            }
         } catch (err) {
             console.error('Error fetching tokens:', err)
         } finally {
@@ -67,17 +66,12 @@ export default function ProfileSettingsPage() {
             const tokenHash = await hashToken(rawToken)
             const tokenPrefix = rawToken.slice(0, 12)
 
-            const { error } = await supabase
-                .from('api_tokens')
-                .insert({
-                    organization_id: organizationId,
-                    created_by_member_id: currentOrganization.id,
-                    name: newTokenName || 'Token de API',
-                    token_hash: tokenHash,
-                    token_prefix: tokenPrefix,
-                })
-
-            if (error) throw error
+            const res = await fetch('/api/tokens', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newTokenName || 'Token de API', token_hash: tokenHash }),
+            })
+            if (!res.ok) throw new Error('Failed to create token')
 
             setGeneratedToken(rawToken)
             setNewTokenName('Token de API')
@@ -92,11 +86,7 @@ export default function ProfileSettingsPage() {
 
     const deleteToken = async (tokenId: string) => {
         try {
-            const { error } = await supabase
-                .from('api_tokens')
-                .delete()
-                .eq('id', tokenId)
-            if (error) throw error
+            await fetch(`/api/tokens?id=${tokenId}`, { method: 'DELETE' })
             await fetchTokens()
         } catch (err) {
             console.error('Error deleting token:', err)
@@ -134,22 +124,18 @@ export default function ProfileSettingsPage() {
 
             setIsLoading(true)
             try {
-                const { data, error } = await supabase
-                    .from('organizations')
-                    .select('*')
-                    .eq('id', organizationId)
-                    .single()
-
-                if (error) throw error
+                const res = await fetch('/api/organizations')
+                if (!res.ok) throw new Error('Failed to fetch org')
+                const { data } = await res.json()
 
                 if (data) {
                     setProfileData({
                         name: data.name || '',
-                        logo_url: data.logo_url || '',
-                        corporate_email: data.corporate_email || '',
-                        phone: data.phone || '',
-                        website: data.website || '',
-                        foundation_date: data.foundation_date || ''
+                        logo_url: data.logo_url || data.logoUrl || '',
+                        corporate_email: '',
+                        phone: '',
+                        website: '',
+                        foundation_date: ''
                     })
                 }
             } catch (err) {
@@ -227,19 +213,12 @@ export default function ProfileSettingsPage() {
         setIsSaving(true)
         setMessage(null)
         try {
-            const { error } = await supabase
-                .from('organizations')
-                .update({
-                    name: profileData.name,
-                    logo_url: profileData.logo_url,
-                    corporate_email: profileData.corporate_email,
-                    phone: profileData.phone,
-                    website: profileData.website,
-                    foundation_date: profileData.foundation_date ? profileData.foundation_date : null
-                })
-                .eq('id', organizationId)
-
-            if (error) throw error
+            const res = await fetch('/api/organizations', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: profileData.name, logo_url: profileData.logo_url }),
+            })
+            if (!res.ok) throw new Error('Failed to save')
 
             setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' })
 

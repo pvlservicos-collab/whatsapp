@@ -114,7 +114,7 @@ export default function LeadList({
       }
 
       // Send network request without awaiting here to avoid blocking
-      supabase.from('leads').update({ is_unread: false }).eq('id', lead.id).then()
+      fetch(`/api/leads/${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_unread: false }) })
     }
   }, [leads, onUpdateLead])
 
@@ -156,10 +156,7 @@ export default function LeadList({
     setContextMenu(prev => ({ ...prev, visible: false }))
 
     try {
-      await supabase
-        .from('leads')
-        .update({ is_pinned: newPinned })
-        .eq('id', lead.id)
+      await fetch(`/api/leads/${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_pinned: newPinned }) })
     } catch (err) {
       console.error('Failed to toggle pin', err)
       // Revert

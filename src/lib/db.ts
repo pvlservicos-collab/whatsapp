@@ -12,11 +12,13 @@ import * as schema from './schema'
 // Em Edge Runtime, usa WebSocket da Cloudflare
 neonConfig.fetchConnectionCache = true
 
-if (!process.env.DATABASE_URL) {
+const databaseUrl = process.env.DATABASE_URL || process.env.whatsapp_DATABASE_URL
+
+if (!databaseUrl) {
   throw new Error('DATABASE_URL não definida nas variáveis de ambiente')
 }
 
-const sql = neon(process.env.DATABASE_URL)
+const sql = neon(databaseUrl)
 export const db = drizzle(sql, { schema })
 
 // Exporta também o cliente sql puro para queries raw quando necessário

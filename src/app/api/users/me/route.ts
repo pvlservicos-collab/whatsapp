@@ -9,6 +9,8 @@ import { apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { organizationMembers, profiles, organizationRoles } from '@/lib/schema'
 import { eq, and } from 'drizzle-orm'
+import bcrypt from 'bcryptjs'
+import { users } from '@/lib/schema'
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,6 +66,12 @@ export async function PATCH(req: NextRequest) {
     if (!session?.user?.id) return apiError(401, 'Não autenticado.')
 
     const body = await req.json()
+    if (body.new_password) {
+      const hash = await bcrypt.hash(body.new_password, 12)
+      await db.update(users).set({ passwordHash: hash }).where(eq(users.id, session.user.id))
+      return Response.json({ success: true })
+    }
+
     const updates: any = {}
     if (body.full_name !== undefined) updates.fullName = body.full_name
     if (body.avatar_url !== undefined) updates.avatarUrl = body.avatar_url

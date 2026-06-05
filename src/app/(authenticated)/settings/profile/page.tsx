@@ -28,12 +28,10 @@ export default function UserProfileSettingsPage() {
 
     useEffect(() => {
         if (user) {
-            setName(profileName || user.user_metadata?.name || '')
+            setName(profileName || user.name || '')
             setEmail(user.email || '')
             setRole(isMaster ? 'Master' : (roleName || 'Membro'))
-            if (user.user_metadata?.avatar_url) {
-                setAvatarUrl(user.user_metadata.avatar_url)
-            }
+            if (user.image) setAvatarUrl(user.image)
         }
     }, [user, isMaster, roleName, profileName])
 
@@ -69,12 +67,8 @@ export default function UserProfileSettingsPage() {
             if (!uploadRes.ok) throw new Error('Falha no upload')
             const { url: publicUrl } = await uploadRes.json()
 
-            // Save the URL in user metadata and public.profiles
-            const { error: updateError } = await fetch('/api/users/me', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ avatar_url: publicUrl }) })
-
-            if (updateError) throw updateError
-
-            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id)
+            const updateRes = await fetch('/api/users/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatar_url: publicUrl }) })
+            if (!updateRes.ok) throw new Error('Failed to update avatar')
 
             setAvatarUrl(publicUrl)
             addNotification({
@@ -89,8 +83,7 @@ export default function UserProfileSettingsPage() {
                 title: 'Erro no Upload',
                 message: err.message || 'Erro ao enviar a foto.'
             })
-            // Revert preview
-            setAvatarUrl(user.user_metadata?.avatar_url || null)
+            setAvatarUrl(user.image || null)
         } finally {
             setIsUploading(false)
             // Reset file input
@@ -111,28 +104,16 @@ export default function UserProfileSettingsPage() {
     const handleSavePersonalInfo = async () => {
         if (!user) return
         setIsSaving(true)
-
         try {
-            const { error } = await supabase.auth.updateUser({
-                data: { name: name, full_name: name }
+            const res = await fetch('/api/users/me', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full_name: name }),
             })
-
-            if (error) throw error
-
-            await supabase.from('profiles').update({ full_name: name }).eq('id', user.id)
-
-            addNotification({
-                type: 'success',
-                title: 'Perfil Atualizado',
-                message: 'Informações pessoais atualizadas com sucesso.'
-            })
+            if (!res.ok) throw new Error('Failed to update profile')
+            addNotification({ type: 'success', title: 'Perfil Atualizado', message: 'Informações pessoais atualizadas com sucesso.' })
         } catch (err: any) {
-            console.error('Error updating profile:', err)
-            addNotification({
-                type: 'error',
-                title: 'Erro na Atualização',
-                message: err.message || 'Erro ao atualizar informações pessoais.'
-            })
+            addNotification({ type: 'error', title: 'Erro na Atualização', message: err.message || 'Erro ao atualizar.' })
         } finally {
             setIsSaving(false)
         }
@@ -140,51 +121,27 @@ export default function UserProfileSettingsPage() {
 
     const handleUpdatePassword = async () => {
         if (!newPassword || newPassword !== confirmPassword) {
-            addNotification({
-                type: 'error',
-                title: 'Validação de Senha',
-                message: 'A nova senha e a confirmação devem ser iguais.'
-            })
+            addNotification({ type: 'error', title: 'Validação de Senha', message: 'A nova senha e a confirmação devem ser iguais.' })
             return
         }
-
         if (newPassword.length < 6) {
-            addNotification({
-                type: 'error',
-                title: 'Validação de Senha',
-                message: 'A nova senha deve ter pelo menos 6 caracteres.'
-            })
+            addNotification({ type: 'error', title: 'Validação de Senha', message: 'A nova senha deve ter pelo menos 6 caracteres.' })
             return
         }
-
         setIsSaving(true)
-
         try {
-            const { error } = await supabase.auth.updateUser({
-                password: newPassword
+            const res = await fetch('/api/users/me', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_password: newPassword }),
             })
-
-            if (error) throw error
-
-            addNotification({
-                type: 'success',
-                title: 'Senha Atualizada',
-                message: 'Senha atualizada com sucesso.'
-            })
+            if (!res.ok) throw new Error('Falha ao atualizar senha')
+            addNotification({ type: 'success', title: 'Senha Atualizada', message: 'Senha atualizada com sucesso.' })
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
         } catch (err: any) {
-            console.error('Error updating password:', err)
-            let errorMessage = err.message || 'Erro ao atualizar a senha.'
-            if (err.message === 'New password should be different from the old password.') {
-                errorMessage = 'A nova senha deve ser diferente da senha atual.'
-            }
-            addNotification({
-                type: 'error',
-                title: 'Falha ao Atualizar Senha',
-                message: errorMessage
-            })
+            addNotification({ type: 'error', title: 'Falha ao Atualizar Senha', message: err.message || 'Erro ao atualizar a senha.' })
         } finally {
             setIsSaving(false)
         }

@@ -1,86 +1,53 @@
-import { NextRequest } from 'next/server'
-import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
-import { publishEvent, channels, events } from '@/lib/realtime'
-import {
-  leads, leadActivities, leadTags, tags, organizationMembers, profiles,
-  pipelineStages, pipelines, integrations, organizationRoles,
-  customFieldDefinitions, customFieldCategories, notifications, apiTokens,
-  organizations, setupTokens, leadStageHistory, integrationSecrets,
-} from '@/lib/schema'
-import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
-
-import { NextResponse, NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Helper to get a service role client that bypasses RLS
-const createSupabaseAdmin = () => {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        }
-    )
-}
+import { profiles, organizations, organizationMembers, pipelines, pipelineStages, leads, leadActivities, leadTags, leadStageHistory, integrations, integrationSecrets, tags, notifications, apiTokens, organizationRoles, customFieldDefinitions, customFieldCategories } from '@/lib/schema'
+import { eq } from 'drizzle-orm'
 
 export async function DELETE(request: NextRequest) {
-    try {
-        const authHeader = request.headers.get('authorization')
-        if (!authHeader) {
-            return NextResponse.json({ error: 'Missing authorization header' }, { status: 401 })
-        }
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const { id: workspaceId } = await request.json()
-        if (!workspaceId) {
-            return NextResponse.json({ error: 'Workspace ID é obrigatório' }, { status: 400 })
-        }
+    const [profile] = await db.select({ isSuperadmin: profiles.isSuperadmin }).from(profiles).where(eq(profiles.id, session.user.id)).limit(1)
+    if (!profile?.isSuperadmin) return NextResponse.json({ error: 'Permissão negada. Apenas Superadmins podem deletar workspaces.' }, { status: 403 })
 
-        // 1. Verify caller is Superadmin
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        const userClient = createClient(supabaseUrl, anonKey, {
-            global: { headers: { Authorization: authHeader } }
-        })
+    const { id: workspaceId } = await request.json()
+    if (!workspaceId) return NextResponse.json({ error: 'Workspace ID é obrigatório' }, { status: 400 })
 
-        const { data: { user }, error: userError } = await userClient.auth.getUser()
-        if (userError || !user) {
-            return NextResponse.json({ error: 'Unauthorized user' }, { status: 401 })
-        }
-
-        // db is imported globally
-
-        // Assuming we verify via the profiles table using supabaseAdmin bypassing RLS for safety
-        const { data: profile, error: profileErr } = await supabaseAdmin
-            .from('profiles')
-            .select('is_superadmin')
-            .eq('id', user.id)
-            .single()
-
-        if (profileErr || !profile?.is_superadmin) {
-            return NextResponse.json({ error: 'Permissão negada. Apenas Superadmins podem deletar workspaces.' }, { status: 403 })
-        }
-
-        // 2. Execute the cascading deletion stored procedure
-        const { error: deleteError } = await supabaseAdmin.rpc('delete_organization_cascade', {
-            org_uuid: workspaceId
-        })
-
-        if (deleteError) {
-            console.error('[delete-workspace] RPC Error details:', deleteError)
-            throw new Error(`Falha ao deletar workspace: ${deleteError.message}`)
-        }
-
-        return NextResponse.json({ success: true })
-
-    } catch (err) {
-        console.error('[delete-workspace] Unexpected admin error:', err)
-        return NextResponse.json(
-            { error: 'Internal Server Error' },
-            { status: 500 }
-        )
+    // Cascade delete in order
+    await db.delete(notifications).where(eq(notifications.organizationId, workspaceId))
+    await db.delete(apiTokens).where(eq(apiTokens.organizationId, workspaceId))
+    const members = await db.select({ id: organizationMembers.id }).from(organizationMembers).where(eq(organizationMembers.organizationId, workspaceId))
+    const memberIds = members.map(m => m.id)
+    const orgLeads = await db.select({ id: leads.id }).from(leads).where(eq(leads.organizationId, workspaceId))
+    for (const lead of orgLeads) {
+      await db.delete(leadTags).where(eq(leadTags.leadId, lead.id))
+      await db.delete(leadActivities).where(eq(leadActivities.leadId, lead.id))
+      await db.delete(leadStageHistory).where(eq(leadStageHistory.leadId, lead.id))
     }
+    await db.delete(leads).where(eq(leads.organizationId, workspaceId))
+    const orgIntegrations = await db.select({ id: integrations.id }).from(integrations).where(eq(integrations.organizationId, workspaceId))
+    for (const integration of orgIntegrations) {
+      await db.delete(integrationSecrets).where(eq(integrationSecrets.integrationId, integration.id))
+    }
+    await db.delete(integrations).where(eq(integrations.organizationId, workspaceId))
+    await db.delete(tags).where(eq(tags.organizationId, workspaceId))
+    await db.delete(customFieldDefinitions).where(eq(customFieldDefinitions.organizationId, workspaceId))
+    await db.delete(customFieldCategories).where(eq(customFieldCategories.organizationId, workspaceId))
+    const orgPipelines = await db.select({ id: pipelines.id }).from(pipelines).where(eq(pipelines.organizationId, workspaceId))
+    for (const pipeline of orgPipelines) {
+      await db.delete(pipelineStages).where(eq(pipelineStages.pipelineId, pipeline.id))
+    }
+    await db.delete(pipelines).where(eq(pipelines.organizationId, workspaceId))
+    await db.delete(organizationMembers).where(eq(organizationMembers.organizationId, workspaceId))
+    await db.delete(organizationRoles).where(eq(organizationRoles.organizationId, workspaceId))
+    await db.delete(organizations).where(eq(organizations.id, workspaceId))
+
+    return NextResponse.json({ success: true })
+  } catch (err: any) {
+    console.error('[delete-workspace] Error:', err)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
 }

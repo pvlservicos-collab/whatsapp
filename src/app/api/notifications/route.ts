@@ -20,6 +20,24 @@ export async function GET(req: NextRequest) {
   } catch (err: any) { return apiError(err.status || 500, err.message || 'Erro interno.') }
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await authenticateRequest(req)
+    if (!auth.memberId) return apiError(403, 'Necessário sessão de usuário.')
+    const body = await req.json()
+    const [notif] = await db.insert(notifications).values({
+      organizationId: auth.organizationId,
+      recipientMemberId: body.recipient_member_id || auth.memberId,
+      type: body.type || 'info',
+      title: body.title || '',
+      body: body.body || '',
+      metadata: body.metadata || {},
+      isRead: false,
+    }).returning()
+    return Response.json({ data: notif }, { status: 201 })
+  } catch (err: any) { return apiError(err.status || 500, err.message || 'Erro interno.') }
+}
+
 export async function PATCH(req: NextRequest) {
   try {
     const auth = await authenticateRequest(req)

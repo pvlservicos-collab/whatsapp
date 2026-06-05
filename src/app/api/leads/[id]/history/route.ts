@@ -1,160 +1,122 @@
 import { NextRequest } from 'next/server'
 import { authenticateRequest, apiError, validateRequired, validateSource } from '@/lib/api-auth'
 import { db } from '@/lib/db'
-import { publishEvent, channels, events } from '@/lib/realtime'
-import {
-  leads, leadActivities, leadTags, tags, organizationMembers, profiles,
-  pipelineStages, pipelines, integrations, organizationRoles,
-  customFieldDefinitions, customFieldCategories, notifications, apiTokens,
-  organizations, setupTokens, leadStageHistory, integrationSecrets,
-} from '@/lib/schema'
-import { eq, and, isNull, desc, asc, ilike, or, sql, ne, inArray, notInArray } from 'drizzle-orm'
+import { leads, leadActivities, leadStageHistory, pipelineStages } from '@/lib/schema'
+import { eq, and, isNull, asc, desc } from 'drizzle-orm'
 
-/**
- * Resolve um lead por UUID ou telefone.
- */
-async function resolveLead(supabase: any, organizationId: string, id: string) {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
-    let query = supabase
-        .from('leads')
-        .select('id')
-        .eq('organization_id', organizationId)
-        .is('deleted_at', null)
+type Params = { params: Promise<{ id: string }> }
 
-    if (isUuid) {
-        query = query.eq('id', id)
-    } else {
-        query = query.eq('phone', decodeURIComponent(id))
-    }
-
-    const { data: lead } = await query.single()
-    return { lead, isUuid, decodedPhone: isUuid ? '' : decodeURIComponent(id) }
+async function resolveLead(organizationId: string, id: string) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+  const [lead] = await db
+    .select({ id: leads.id, createdAt: leads.createdAt, title: leads.title, value: leads.value })
+    .from(leads)
+    .where(and(
+      isUuid ? eq(leads.id, id) : eq(leads.phone, decodeURIComponent(id)),
+      eq(leads.organizationId, organizationId),
+      isNull(leads.deletedAt)
+    ))
+    .limit(1)
+  return lead
 }
 
-/**
- * GET /api/leads/[id]/history
- * Retorna todas as atividades do lead (mensagens, notas, ligações, eventos de sistema)
- */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const auth = await authenticateRequest(req)
-        const { id } = await params
-        // db is imported globally
+export async function GET(req: NextRequest, { params }: Params) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
 
-        const { lead } = await resolveLead(supabase, auth.organizationId, id)
-        if (!lead) return apiError(404, 'Lead não encontrado.')
+    const lead = await resolveLead(auth.organizationId, id)
+    if (!lead) return apiError(404, 'Lead não encontrado.')
 
-        const { data, error } = await supabase
-            .from('lead_activities')
-            .select('id, type, content, metadata, actor_member_id, created_at')
-            .eq('organization_id', auth.organizationId)
-            .eq('lead_id', lead.id)
-            .order('created_at', { ascending: true })
+    const activities = await db
+      .select({
+        id: leadActivities.id,
+        type: leadActivities.type,
+        content: leadActivities.content,
+        metadata: leadActivities.metadata,
+        actorMemberId: leadActivities.actorMemberId,
+        createdAt: leadActivities.createdAt,
+      })
+      .from(leadActivities)
+      .where(and(eq(leadActivities.leadId, lead.id), eq(leadActivities.organizationId, auth.organizationId)))
+      .orderBy(desc(leadActivities.createdAt))
 
-        if (error) return apiError(500, error.message)
-        return Response.json({ data })
-    } catch (err: any) {
-        return apiError(err.status || 500, err.message || 'Erro interno.')
-    }
+    const stageHistory = await db
+      .select({
+        id: leadStageHistory.id,
+        fromStageId: leadStageHistory.fromStageId,
+        toStageId: leadStageHistory.toStageId,
+        movedAt: leadStageHistory.movedAt,
+        movedByMemberId: leadStageHistory.movedByMemberId,
+      })
+      .from(leadStageHistory)
+      .where(eq(leadStageHistory.leadId, lead.id))
+      .orderBy(desc(leadStageHistory.movedAt))
+
+    return Response.json({
+      data: activities,
+      stageHistory,
+      lead: { createdAt: lead.createdAt, title: lead.title, value: lead.value },
+    })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
 }
 
-/**
- * POST /api/leads/[id]/history
- * Adiciona um evento ao histórico do lead
- */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const auth = await authenticateRequest(req)
-        const { id } = await params
-        const body = await req.json()
+export async function POST(req: NextRequest, { params }: Params) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { id } = await params
+    const body = await req.json()
 
-        const requiredError = validateRequired(body, ['content', 'type', 'source'])
-        if (requiredError) return apiError(400, requiredError)
-        const sourceError = validateSource(body.source)
-        if (sourceError) return apiError(400, sourceError)
+    const requiredError = validateRequired(body, ['content', 'type', 'source'])
+    if (requiredError) return apiError(400, requiredError)
+    const sourceError = validateSource(body.source)
+    if (sourceError) return apiError(400, sourceError)
 
-        // db is imported globally
+    let lead = await resolveLead(auth.organizationId, id)
+    const isUuid = /^[0-9a-f]{8}/.test(id)
 
-        // Verify lead belongs to org
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    if (!lead) {
+      if (isUuid) return apiError(404, 'Lead não encontrado.')
 
-        let query = supabase
-            .from('leads')
-            .select('id')
-            .eq('organization_id', auth.organizationId)
-            .is('deleted_at', null)
+      const decodedPhone = decodeURIComponent(id)
+      const [firstStage] = await db
+        .select({ id: pipelineStages.id })
+        .from(pipelineStages)
+        .where(and(eq(pipelineStages.organizationId, auth.organizationId), isNull(pipelineStages.deletedAt)))
+        .orderBy(asc(pipelineStages.rank))
+        .limit(1)
 
-        let decodedPhone = ''
-        if (isUuid) {
-            query = query.eq('id', id)
-        } else {
-            decodedPhone = decodeURIComponent(id)
-            query = query.eq('phone', decodedPhone)
-        }
+      const [newLead] = await db.insert(leads).values({
+        organizationId: auth.organizationId,
+        title: decodedPhone,
+        phone: decodedPhone,
+        stageId: firstStage?.id || null,
+        lastActivityAt: new Date(),
+        customAttributes: { source: body.source },
+      }).returning({ id: leads.id, createdAt: leads.createdAt, title: leads.title, value: leads.value })
 
-        const { data: lead } = await query.single()
-
-        let actualLeadId = lead?.id
-
-        if (!actualLeadId) {
-            if (isUuid) {
-                return apiError(404, 'Lead não encontrado.')
-            }
-
-            // Create new lead using phone
-            const { data: firstStage } = await supabase
-                .from('pipeline_stages')
-                .select('id')
-                .eq('organization_id', auth.organizationId)
-                .is('deleted_at', null)
-                .order('rank', { ascending: true })
-                .limit(1)
-                .single()
-
-            const { data: newLead, error: createError } = await supabase
-                .from('leads')
-                .insert({
-                    organization_id: auth.organizationId,
-                    title: decodedPhone,
-                    phone: decodedPhone,
-                    stage_id: firstStage?.id || null,
-                    last_activity_at: new Date().toISOString(),
-                    custom_attributes: { source: body.source }
-                })
-                .select('id')
-                .single()
-
-            if (createError) return apiError(500, `Erro ao criar lead automaticamente: ${createError.message}`)
-            actualLeadId = newLead.id
-        }
-
-        const { data: activity, error } = await supabase
-            .from('lead_activities')
-            .insert({
-                organization_id: auth.organizationId,
-                lead_id: actualLeadId,
-                actor_member_id: auth.memberId || null,
-                type: body.type,
-                content: body.content,
-                metadata: { ...body.metadata, source: body.source }
-            })
-            .select('id, type, content, created_at')
-            .single()
-
-        if (error) return apiError(500, error.message)
-
-        // Update lead last activity
-        await supabase
-            .from('leads')
-            .update({
-                last_activity_at: new Date().toISOString(),
-                last_activity_type: body.type,
-                last_activity_by_member_id: auth.memberId || null
-            })
-            .eq('id', actualLeadId)
-
-        return Response.json(activity, { status: 201 })
-    } catch (err: any) {
-        return apiError(err.status || 500, err.message || 'Erro interno.')
+      lead = newLead
     }
+
+    const [activity] = await db.insert(leadActivities).values({
+      organizationId: auth.organizationId,
+      leadId: lead.id,
+      actorMemberId: auth.memberId || null,
+      type: body.type,
+      content: body.content,
+      metadata: { ...body.metadata, source: body.source },
+    }).returning()
+
+    await db.update(leads).set({
+      lastActivityAt: new Date(),
+      lastActivityType: body.type as any,
+      lastActivityByMemberId: auth.memberId || null,
+    }).where(eq(leads.id, lead.id))
+
+    return Response.json(activity, { status: 201 })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
 }

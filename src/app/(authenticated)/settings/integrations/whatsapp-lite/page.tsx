@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { ArrowLeft, ArrowsClockwise, Info, MonitorPlay, DeviceMobile, Users, ShieldCheck, CaretDown, CaretUp, CheckCircle, Warning, MagnifyingGlassPlus, UsersThree } from '@phosphor-icons/react'
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
 import { getInstanceStatus, disconnectInstance, createInstance, connectInstanceWithToken, setWebhook } from '@/app/actions/uazapi'
 import { useAuth, usePipeline } from '@/hooks'
 
@@ -66,11 +65,8 @@ export default function WhatsAppLitePage() {
     useEffect(() => {
         const fetchOrgDetails = async () => {
             if (organizationId) {
-                const { data } = await supabase
-                    .from('organizations')
-                    .select('name')
-                    .eq('id', organizationId)
-                    .single();
+                const orgRes = await fetch('/api/organizations')
+                const { data } = orgRes.ok ? await orgRes.json() : { data: null }
 
                 const orgName = data?.name ? data.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : 'atlas';
                 const idPrefix = organizationId.replace(/-/g, '').substring(0, 6);
@@ -89,37 +85,22 @@ export default function WhatsAppLitePage() {
 
         try {
             // 1. Verifica se já existe uma integração WhatsApp Lite para esta organização
-            const { data: existingIntegration } = await supabase
-                .from('integrations')
-                .select('id, config')
-                .eq('organization_id', organizationId)
-                .eq('name', 'WhatsApp Lite')
-                .single();
+            const existingRes = await fetch('/api/integrations?name=WhatsApp+Lite')
+            const existingData = existingRes.ok ? await existingRes.json() : { data: [] }
+            const existingIntegration = existingData.data?.[0]
 
             if (existingIntegration) {
-                // Update
-                console.log('Updating existing integration in DB...');
-                const { error: updateErr } = await supabase
-                    .from('integrations')
-                    .update({
-                        status: 'active',
-                        config: { ...existingIntegration.config, instanceName: name, instanceToken: token }
-                    })
-                    .eq('id', existingIntegration.id);
-                if (updateErr) console.error('Failed to update integration:', updateErr);
+                await fetch('/api/integrations', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: existingIntegration.id, status: 'active', config: { ...existingIntegration.config, instanceName: name, instanceToken: token }, mergeConfig: true }),
+                })
             } else {
-                // Insert
-                console.log('Inserting new integration in DB...');
-                const { error: insertErr } = await supabase
-                    .from('integrations')
-                    .insert({
-                        organization_id: organizationId,
-                        name: 'WhatsApp Lite',
-                        type: 'whatsapp_lite',
-                        status: 'active',
-                        config: { instanceName: name, instanceToken: token }
-                    });
-                if (insertErr) console.error('Failed to insert integration:', insertErr);
+                await fetch('/api/integrations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: 'WhatsApp Lite', type: 'whatsapp_lite', status: 'active', config: { instanceName: name, instanceToken: token } }),
+                })
             }
 
             // FALLBACK ROBUSTO: Salva localmente também, para sobreviver ao F5 caso o DB falhe
@@ -139,12 +120,9 @@ export default function WhatsAppLitePage() {
 
         // Verifica se a integração já está no BD para setar o token
         if (organizationId) {
-            const { data: dbIntegration } = await supabase
-                .from('integrations')
-                .select('config')
-                .eq('organization_id', organizationId)
-                .eq('name', 'WhatsApp Lite')
-                .single();
+            const dbRes = await fetch('/api/integrations?name=WhatsApp+Lite')
+            const dbData = dbRes.ok ? await dbRes.json() : { data: [] }
+            const dbIntegration = dbData.data?.[0]
 
             if (dbIntegration?.config) {
                 if (dbIntegration.config.instanceToken) {
@@ -158,7 +136,6 @@ export default function WhatsAppLitePage() {
                     setListenGroups(dbIntegration.config.listenGroups);
                 }
             } else {
-                // FALLBACK: Se o Supabase falhar por RLS, tenta recuperar do LocalStorage
                 const localToken = localStorage.getItem(`whatsapp_token_${organizationId}`);
                 if (localToken) {
                     currentToken = localToken;
@@ -305,12 +282,11 @@ export default function WhatsAppLitePage() {
         setConnectionState('loading');
         setQrCodeBase64(null);
 
-        // Desabilita nas integrações
-        await supabase
-            .from('integrations')
-            .update({ status: 'disabled', config: { instanceName: '', instanceToken: '', defaultPipelineId: '' } })
-            .eq('organization_id', organizationId)
-            .eq('name', 'WhatsApp Lite');
+        await fetch('/api/integrations', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'WhatsApp Lite', status: 'disabled', config: { instanceName: '', instanceToken: '', defaultPipelineId: '' } }),
+        });
 
         const { deleteInstance } = await import('@/app/actions/uazapi');
         await deleteInstance(instanceToken);
@@ -328,22 +304,11 @@ export default function WhatsAppLitePage() {
 
         if (!organizationId) return;
 
-        // Update ONLY if integration exists
-        const { data: existingIntegration } = await supabase
-            .from('integrations')
-            .select('id, config')
-            .eq('organization_id', organizationId)
-            .eq('name', 'WhatsApp Lite')
-            .single();
-
-        if (existingIntegration) {
-            await supabase
-                .from('integrations')
-                .update({
-                    config: { ...existingIntegration.config, defaultPipelineId: newPipelineId }
-                })
-                .eq('id', existingIntegration.id);
-        }
+        await fetch('/api/integrations', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'WhatsApp Lite', config: { defaultPipelineId: newPipelineId }, mergeConfig: true }),
+        });
     };
 
     const handleToggleListenGroups = async () => {
@@ -352,21 +317,11 @@ export default function WhatsAppLitePage() {
 
         if (!organizationId) return;
 
-        const { data: existingIntegration } = await supabase
-            .from('integrations')
-            .select('id, config')
-            .eq('organization_id', organizationId)
-            .eq('name', 'WhatsApp Lite')
-            .single();
-
-        if (existingIntegration) {
-            await supabase
-                .from('integrations')
-                .update({
-                    config: { ...existingIntegration.config, listenGroups: newValue }
-                })
-                .eq('id', existingIntegration.id);
-        }
+        await fetch('/api/integrations', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'WhatsApp Lite', config: { listenGroups: newValue }, mergeConfig: true }),
+        });
     };
 
     return (

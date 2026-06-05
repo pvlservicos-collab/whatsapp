@@ -1,228 +1,113 @@
 import { useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import { CustomFieldCategory, CustomFieldDefinition } from '@/lib/types'
+import { CustomFieldDefinition } from '@/lib/types'
+
+export interface CustomFieldCategory {
+  id: string
+  organization_id: string
+  name: string
+  rank: number
+}
 
 export function useCustomFieldSettings() {
-    const { organizationId } = useAuth()
-    const [categories, setCategories] = useState<CustomFieldCategory[]>([])
-    const [fields, setFields] = useState<CustomFieldDefinition[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<Error | null>(null)
+  const { organizationId } = useAuth()
+  const [categories, setCategories] = useState<CustomFieldCategory[]>([])
+  const [fields, setFields] = useState<CustomFieldDefinition[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-    const fetchData = useCallback(async () => {
-        if (!organizationId) return
-
-        setLoading(true)
-        setError(null)
-        try {
-            // Fetch categories
-            const { data: catData, error: catError } = await supabase
-                .from('custom_field_categories')
-                .select('*')
-                .eq('organization_id', organizationId)
-                .order('rank', { ascending: true })
-                .order('created_at', { ascending: true })
-
-            if (catError) throw catError
-            setCategories(catData || [])
-
-            // Fetch fields
-            const { data: fieldData, error: fieldError } = await supabase
-                .from('custom_field_definitions')
-                .select('*')
-                .eq('organization_id', organizationId)
-                .is('deleted_at', null)
-                .order('rank', { ascending: true })
-                .order('created_at', { ascending: true })
-
-            if (fieldError) throw fieldError
-            setFields(fieldData || [])
-        } catch (err: any) {
-            console.error('Error fetching custom fields settings:', err)
-            setError(err)
-        } finally {
-            setLoading(false)
-        }
-    }, [organizationId])
-
-    // --- Categories ---
-    const createCategory = async (name: string) => {
-        if (!organizationId) return
-
-        try {
-            const { data, error } = await supabase
-                .from('custom_field_categories')
-                .insert([{
-                    organization_id: organizationId,
-                    name,
-                    rank: categories.length // Put at the end
-                }])
-                .select()
-                .single()
-
-            if (error) throw error
-            setCategories(prev => [...prev, data])
-            return data
-        } catch (err: any) {
-            console.error('Error creating category:', err)
-            throw err
-        }
+  const fetchData = useCallback(async () => {
+    if (!organizationId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/custom-fields')
+      if (!res.ok) throw new Error('Failed to fetch custom fields')
+      const { categories: cats, definitions: defs } = await res.json()
+      setCategories(cats || [])
+      setFields(defs || [])
+    } catch (err: any) {
+      console.error('Error fetching custom fields settings:', err)
+      setError(err)
+    } finally {
+      setLoading(false)
     }
+  }, [organizationId])
 
-    const updateCategory = async (id: string, updates: Partial<CustomFieldCategory>) => {
-        try {
-            const { error } = await supabase
-                .from('custom_field_categories')
-                .update(updates)
-                .eq('id', id)
+  const createCategory = async (name: string) => {
+    if (!organizationId) return
+    const res = await fetch('/api/custom-fields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'category', name, rank: categories.length }),
+    })
+    if (!res.ok) throw new Error('Failed to create category')
+    const { data } = await res.json()
+    setCategories(prev => [...prev, data])
+    return data
+  }
 
-            if (error) throw error
-            setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
-        } catch (err: any) {
-            console.error('Error updating category:', err)
-            throw err
-        }
-    }
+  const updateCategory = async (id: string, updates: Partial<CustomFieldCategory>) => {
+    const res = await fetch(`/api/custom-fields/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...updates, type: 'category' }),
+    })
+    if (!res.ok) throw new Error('Failed to update category')
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+  }
 
-    const deleteCategory = async (id: string) => {
-        try {
-            // The fields have ON DELETE SET NULL for category_id, so deleting a category just unlinks fields.
-            const { error } = await supabase
-                .from('custom_field_categories')
-                .delete()
-                .eq('id', id)
+  const deleteCategory = async (id: string) => {
+    const res = await fetch(`/api/custom-fields/${id}?type=category`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to delete category')
+    setCategories(prev => prev.filter(c => c.id !== id))
+    setFields(prev => prev.map(f => (f as any).category_id === id ? { ...f, category_id: undefined } as any : f))
+  }
 
-            if (error) throw error
-            setCategories(prev => prev.filter(c => c.id !== id))
-            // Update local fields state to reflect SET NULL (we use undefined in the type)
-            setFields(prev => prev.map(f => f.category_id === id ? { ...f, category_id: undefined } as CustomFieldDefinition : f))
-        } catch (err: any) {
-            console.error('Error deleting category:', err)
-            throw err
-        }
-    }
+  const createField = async (payload: { name: string; field_type: string; category_id?: string | null; required?: boolean; description?: string; options?: any[] }) => {
+    if (!organizationId) return
+    const res = await fetch('/api/custom-fields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, rank: fields.length * 1000 }),
+    })
+    if (!res.ok) throw new Error('Failed to create field')
+    const { data } = await res.json()
+    setFields(prev => [...prev, data])
+    return data
+  }
 
-    // --- Fields ---
-    const createField = async (payload: { name: string, field_type: string, category_id?: string | null, required?: boolean, description?: string, options?: any[] }) => {
-        if (!organizationId) return
+  const updateField = async (id: string, payload: any) => {
+    const res = await fetch(`/api/custom-fields/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error('Failed to update field')
+    const { data } = await res.json()
+    setFields(prev => prev.map(f => f.id === id ? data : f))
+    return data
+  }
 
-        // Generate a unique key based on name and timestamp to avoid collisions
-        const slug = payload.name.toLowerCase().replace(/[^a-z0-9]/g, '_')
-        const uniqueKey = `${slug}_${Date.now()}`
+  const updateFieldRanks = async (updates: { id: string; rank: number }[]) => {
+    setFields(prev => {
+      const map = new Map(updates.map(u => [u.id, u.rank]))
+      return prev.map(f => map.has(f.id) ? { ...f, rank: map.get(f.id)! } : f).sort((a, b) => (a.rank as any) - (b.rank as any))
+    })
+    await Promise.all(updates.map(u =>
+      fetch(`/api/custom-fields/${u.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rank: u.rank }),
+      })
+    ))
+  }
 
-        try {
-            const insertPayload = {
-                organization_id: organizationId,
-                key: uniqueKey,
-                name: payload.name,
-                field_type: payload.field_type,
-                category_id: payload.category_id || null,
-                rank: fields.length * 1000 + Date.now() % 1000, // Safe default at the end
-                schema: {
-                    required: !!payload.required,
-                    description: payload.description || '',
-                    options: payload.options || []
-                }
-            }
+  const deleteField = async (id: string) => {
+    const res = await fetch(`/api/custom-fields/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to delete field')
+    setFields(prev => prev.filter(f => f.id !== id))
+  }
 
-            const { data, error } = await supabase
-                .from('custom_field_definitions')
-                .insert([insertPayload])
-                .select()
-                .single()
-
-            if (error) throw error
-            setFields(prev => [...prev, data])
-            return data
-        } catch (err: any) {
-            console.error('Error creating field:', err)
-            throw err
-        }
-    }
-
-    const updateFieldRanks = async (updates: { id: string, rank: number }[]) => {
-        try {
-            // Optimistic update locally
-            setFields(prev => {
-                const map = new Map(updates.map(u => [u.id, u.rank]))
-                const updated = prev.map(f => map.has(f.id) ? { ...f, rank: map.get(f.id)! } : f)
-                return updated.sort((a, b) => a.rank - b.rank)
-            })
-
-            // Supabase bulk UPSERT via inserting an array of objects
-            // Important: to safely update fields with RLS, we should ideally call an RPC
-            // Or loop through and update. For small sizes, `Promise.all` is fine.
-            const promises = updates.map(u =>
-                supabase
-                    .from('custom_field_definitions')
-                    .update({ rank: u.rank })
-                    .eq('id', u.id)
-            )
-            await Promise.all(promises)
-        } catch (err: any) {
-            console.error('Error updating field ranks:', err)
-            throw err
-        }
-    }
-
-    const updateField = async (id: string, payload: { name: string, field_type: string, category_id?: string | null, required?: boolean, description?: string, options?: any[] }) => {
-        try {
-            const updates = {
-                name: payload.name,
-                field_type: payload.field_type,
-                category_id: payload.category_id || null,
-                schema: {
-                    required: !!payload.required,
-                    description: payload.description || '',
-                    options: payload.options || []
-                }
-            }
-
-            const { data, error } = await supabase
-                .from('custom_field_definitions')
-                .update(updates)
-                .eq('id', id)
-                .select()
-                .single()
-
-            if (error) throw error
-            setFields(prev => prev.map(f => f.id === id ? data : f))
-            return data
-        } catch (err: any) {
-            console.error('Error updating field:', err)
-            throw err
-        }
-    }
-
-    const deleteField = async (id: string) => {
-        try {
-            // Soft delete
-            const { error } = await supabase
-                .from('custom_field_definitions')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', id)
-
-            if (error) throw error
-            setFields(prev => prev.filter(f => f.id !== id))
-        } catch (err: any) {
-            console.error('Error deleting field:', err)
-            throw err
-        }
-    }
-
-    return {
-        categories,
-        fields,
-        loading,
-        error,
-        fetchData,
-        createCategory,
-        updateCategory,
-        deleteCategory,
-        createField,
-        updateField,
-        updateFieldRanks,
-        deleteField
-    }
+  return { categories, fields, loading, error, fetchData, createCategory, updateCategory, deleteCategory, createField, updateField, updateFieldRanks, deleteField }
 }

@@ -163,35 +163,26 @@ export default function LeadDetailsSidebar({
       onUpdateLead(lead.id, { title: trimmed })
     }
 
-    const { error } = await supabase
-      .from('leads')
-      .update({ title: trimmed })
-      .eq('id', lead.id)
+    const res = await fetch(`/api/leads/${lead.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: trimmed }),
+    })
 
-    if (error) {
-      console.error('Failed to update lead name:', error)
-      // Revert optimistic update
-      if (onUpdateLead) {
-        onUpdateLead(lead.id, { title: oldName })
-      }
+    if (!res.ok) {
+      console.error('Failed to update lead name')
+      if (onUpdateLead) onUpdateLead(lead.id, { title: oldName })
       setEditingNameValue(oldName)
     } else {
-      // Log the name change in history
-      const { error: historyError } = await supabase.from('lead_activities').insert({
-        organization_id: lead.organization_id,
-        lead_id: lead.id,
-        type: 'system',
-        content: `Membro renomeou o lead de "${formatPhone(oldName)}" para "${formatPhone(trimmed)}".`,
-        actor_member_id: currentOrganization?.id || null,
-        metadata: {
-          source: 'rename',
-          sender_name: profileName || user?.user_metadata?.full_name || user?.email || 'Usuário',
-        }
+      await fetch(`/api/leads/${lead.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'system',
+          content: `Membro renomeou o lead de "${formatPhone(oldName)}" para "${formatPhone(trimmed)}".`,
+          metadata: { source: 'rename', sender_name: profileName || user?.email || 'Usuário' },
+        }),
       })
-
-      if (historyError) {
-        console.error('Failed to insert history for rename:', historyError)
-      }
     }
   }
 
