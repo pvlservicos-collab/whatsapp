@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!lead) return apiError(404, 'Lead não encontrado.')
 
-    const data = await db
+    const rows = await db
       .select({
         id: leadActivities.id,
         type: leadActivities.type,
@@ -40,10 +40,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         metadata: leadActivities.metadata,
         actor_member_id: leadActivities.actorMemberId,
         created_at: leadActivities.createdAt,
-        actor: {
-          id: organizationMembers.id,
-          profiles: { full_name: profiles.fullName, avatar_url: profiles.avatarUrl },
-        },
+        actor_id: organizationMembers.id,
+        actor_full_name: profiles.fullName,
+        actor_avatar_url: profiles.avatarUrl,
       })
       .from(leadActivities)
       .leftJoin(organizationMembers, eq(organizationMembers.id, leadActivities.actorMemberId))
@@ -56,6 +55,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         )
       )
       .orderBy(asc(leadActivities.createdAt))
+
+    const data = rows.map(r => ({
+      id: r.id,
+      type: r.type,
+      content: r.content,
+      metadata: r.metadata,
+      actor_member_id: r.actor_member_id,
+      created_at: r.created_at,
+      actor: r.actor_id ? { profiles: { full_name: r.actor_full_name || '', avatar_url: r.actor_avatar_url || undefined } } : undefined,
+    }))
 
     return Response.json({ data })
   } catch (err: any) {

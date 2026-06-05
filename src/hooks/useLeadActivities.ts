@@ -77,8 +77,7 @@ export function useLeadActivities(organizationId: string, leadId: string) {
           : {}),
       },
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      actor: null,
+      actor: undefined,
     }
     setActivities((prev) => [...prev, optimisticMsg])
 

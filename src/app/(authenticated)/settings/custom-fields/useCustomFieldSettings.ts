@@ -7,6 +7,8 @@ export interface CustomFieldCategory {
   organization_id: string
   name: string
   rank: number
+  created_at: string
+  updated_at: string
 }
 
 export function useCustomFieldSettings() {
