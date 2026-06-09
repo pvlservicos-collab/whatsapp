@@ -30,9 +30,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const orgId = new URL(req.url).searchParams.get('org_id')
-
-    if (!orgId) return Response.json({ status: 'ignored: missing org_id' })
 
     const entry = body.entry?.[0]
     const changes = entry?.changes?.[0]
@@ -40,6 +37,23 @@ export async function POST(req: NextRequest) {
     const message = value?.messages?.[0]
 
     if (!message) return Response.json({ status: 'ignored: no message' })
+
+    // Resolve org_id: URL param (legado) ou via WABA ID no payload
+    let orgId = new URL(req.url).searchParams.get('org_id')
+    if (!orgId) {
+      const wabaId = entry?.id as string | undefined
+      if (wabaId) {
+        const { integrations } = await import('@/lib/schema')
+        const { sql } = await import('drizzle-orm')
+        const [found] = await db.select({ organizationId: integrations.organizationId })
+          .from(integrations)
+          .where(sql`${integrations.config}->>'waba_id' = ${wabaId}`)
+          .limit(1)
+        orgId = found?.organizationId ?? null
+      }
+    }
+
+    if (!orgId) return Response.json({ status: 'ignored: org not found' })
 
     const phone = message.from
     const content = message.text?.body || (message.type === 'image' ? '📷 Imagem' : '[Mídia recebida]')
