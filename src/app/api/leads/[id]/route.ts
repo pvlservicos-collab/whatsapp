@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { leads, leadTags, tags, leadStageHistory } from '@/lib/schema'
 import { eq, and, isNull, asc } from 'drizzle-orm'
+import { mapLead } from '@/lib/mappers'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       .leftJoin(tags, eq(tags.id, leadTags.tagId))
       .where(eq(leadTags.leadId, lead.id))
 
-    return Response.json({ data: { ...lead, lead_tags: leadTagsData.map(t => ({ tag_id: t.tagId, tag: t })) } })
+    return Response.json({ data: { ...mapLead(lead), lead_tags: leadTagsData.map(t => ({ tag_id: t.tagId, tag: t })) } })
   } catch (err: any) {
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }

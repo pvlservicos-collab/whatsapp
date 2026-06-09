@@ -6,6 +6,7 @@ import {
   leads, leadTags, tags, organizationMembers, profiles, pipelineStages,
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, or, sql, count } from 'drizzle-orm'
+import { mapLead } from '@/lib/mappers'
 
 /**
  * GET /api/leads
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
     }
 
     const result = data.map((l) => ({
-      ...l,
+      ...mapLead(l),
       lead_tags: tagsMap[l.id] || [],
     }))
 
