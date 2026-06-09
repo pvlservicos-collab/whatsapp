@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!message) return Response.json({ status: 'ignored: no message' })
 
     const phone = message.from
-    const content = message.text?.body || message.type === 'image' ? '📷 Imagem' : '[Mídia recebida]'
+    const content = message.text?.body || (message.type === 'image' ? '📷 Imagem' : '[Mídia recebida]')
     const senderName = value?.contacts?.[0]?.profile?.name || phone
 
     // Buscar ou criar lead
