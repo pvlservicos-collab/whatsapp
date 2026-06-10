@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    console.log('[Facebook Webhook] payload:', JSON.stringify(body))
 
     const entry = body.entry?.[0]
     const changes = entry?.changes?.[0]
