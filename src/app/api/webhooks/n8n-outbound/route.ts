@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiError, validateRequired } from '@/lib/api-auth'
+import { apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leads, leadActivities, pipelineStages, integrationMessageLogs } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
@@ -11,19 +11,61 @@ const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
  * POST /api/webhooks/n8n-outbound
  * Webhook para registrar no CRM mensagens já enviadas pelo WhatsApp via n8n.
  *
- * Sem autenticação (uso interno).
- * Body: { phone: string, content: string, sender_name?: string }
+ * Sem autenticação (uso interno). Tolerante a payloads desformatados:
+ * - aceita JSON inválido/vazio
+ * - aceita array (usa o primeiro item)
+ * - aceita tanto { phone, content, ... } quanto a resposta crua da API do
+ *   WhatsApp (com "contacts"/"messages"), extraindo phone/content/whatsapp_message_id
+ *   de vários formatos possíveis
  */
 export async function POST(req: NextRequest) {
-  let body: any = {}
+  const raw = await req.text()
+
+  let parsed: any = null
+  let parseError: string | null = null
+  try {
+    parsed = raw ? JSON.parse(raw) : {}
+  } catch (err: any) {
+    parseError = `JSON inválido: ${err.message}`
+  }
+
+  const body = Array.isArray(parsed) ? (parsed[0] ?? {}) : (parsed ?? {})
+
+  const rawPhone =
+    body.phone ??
+    body.wa_id ??
+    body.contacts?.[0]?.wa_id ??
+    body.contacts?.[0]?.input ??
+    body.messages?.[0]?.from ??
+    null
+
+  const content =
+    body.content ??
+    body.text ??
+    body.message ??
+    body.messages?.[0]?.text?.body ??
+    body.messages?.[0]?.template?.name ??
+    null
+
+  const phone = rawPhone != null ? String(rawPhone).replace(/\D/g, '') : ''
+
+  const senderName = body.sender_name || body.contacts?.[0]?.profile?.name || null
+
+  const whatsappMessageId =
+    body.whatsapp_message_id ??
+    body.messages?.[0]?.id ??
+    body.message_id ??
+    null
+
+  const messageStatus =
+    body.message_status ??
+    body.messages?.[0]?.message_status ??
+    null
 
   try {
-    body = await req.json()
-
-    const requiredError = validateRequired(body, ['phone', 'content'])
-    if (requiredError) return apiError(400, requiredError)
-
-    const phone = String(body.phone).replace(/\D/g, '')
+    if (parseError) throw { status: 400, message: parseError }
+    if (!phone) throw { status: 400, message: 'Não foi possível identificar o telefone (phone) na mensagem.' }
+    if (!content) throw { status: 400, message: 'Não foi possível identificar o conteúdo (content) da mensagem.' }
 
     const [existing] = await db.select({ id: leads.id, title: leads.title })
       .from(leads)
@@ -38,7 +80,7 @@ export async function POST(req: NextRequest) {
 
       const [newLead] = await db.insert(leads).values({
         organizationId: ORGANIZATION_ID,
-        title: body.sender_name || phone,
+        title: senderName || phone,
         phone,
         stageId: firstStage?.id || null,
         lastActivityAt: new Date(),
@@ -51,19 +93,19 @@ export async function POST(req: NextRequest) {
       organizationId: ORGANIZATION_ID,
       leadId,
       type: 'whatsapp',
-      content: body.content,
+      content,
       metadata: {
         source: 'n8n',
         direction: 'outbound',
         send_status: 'sent',
-        sender_name: body.sender_name,
-        whatsapp_message_id: body.whatsapp_message_id,
-        whatsapp_status: body.message_status,
+        sender_name: senderName,
+        whatsapp_message_id: whatsappMessageId,
+        whatsapp_status: messageStatus,
       },
     }).returning({ id: leadActivities.id })
 
     await db.update(leads).set({
-      lastMessageContent: body.content,
+      lastMessageContent: content,
       lastMessageSenderType: 'agent',
       lastActivityAt: new Date(),
     }).where(eq(leads.id, leadId))
@@ -76,10 +118,10 @@ export async function POST(req: NextRequest) {
       source: 'n8n',
       direction: 'outbound',
       phone,
-      content: body.content,
+      content,
       leadId,
       status: 'success',
-      payload: body,
+      payload: { raw, parsed },
     })
 
     return Response.json({ status: 'ok', lead_id: leadId, activity_id: activity.id })
@@ -88,11 +130,11 @@ export async function POST(req: NextRequest) {
       organizationId: ORGANIZATION_ID,
       source: 'n8n',
       direction: 'outbound',
-      phone: body?.phone ? String(body.phone) : null,
-      content: body?.content ?? null,
+      phone: phone || null,
+      content: content != null ? String(content) : null,
       status: 'error',
       error: err.message || 'Erro interno.',
-      payload: body,
+      payload: { raw, parsed },
     }).catch(() => {})
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }

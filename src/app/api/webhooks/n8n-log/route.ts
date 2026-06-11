@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server'
-import { apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { integrationMessageLogs } from '@/lib/schema'
 
@@ -9,32 +8,79 @@ const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
  * POST /api/webhooks/n8n-log
  * Apenas registra a mensagem na aba Logs — não cria/atualiza conversas no CRM.
  *
- * Sem autenticação (uso interno).
- * Aceita tanto { phone, content, ... } quanto a resposta crua da API do WhatsApp
- * (com "contacts" e "messages"), de onde phone/whatsapp_message_id são extraídos.
+ * Sem autenticação (uso interno). Tolerante a payloads desformatados:
+ * - aceita JSON inválido/vazio (loga como erro, mas não derruba o fluxo do n8n)
+ * - aceita array (usa o primeiro item)
+ * - aceita tanto { phone, content, ... } quanto a resposta crua da API do
+ *   WhatsApp (com "contacts"/"messages"), extraindo phone/content/whatsapp_message_id
+ *   de vários formatos possíveis
  */
 export async function POST(req: NextRequest) {
+  const raw = await req.text()
+
+  let parsed: any = null
+  let parseError: string | null = null
   try {
-    const body = await req.json()
+    parsed = raw ? JSON.parse(raw) : {}
+  } catch (err: any) {
+    parseError = `JSON inválido: ${err.message}`
+  }
 
-    const phone = body.phone || body.contacts?.[0]?.wa_id || body.contacts?.[0]?.input || null
-    const content = body.content ?? null
-    const whatsappMessageId = body.whatsapp_message_id || body.messages?.[0]?.id || null
-    const messageStatus = body.message_status || body.messages?.[0]?.message_status || null
+  // n8n às vezes envia um array de items
+  const body = Array.isArray(parsed) ? (parsed[0] ?? {}) : (parsed ?? {})
 
+  const phone =
+    body.phone ??
+    body.wa_id ??
+    body.contacts?.[0]?.wa_id ??
+    body.contacts?.[0]?.input ??
+    body.messages?.[0]?.from ??
+    null
+
+  const content =
+    body.content ??
+    body.text ??
+    body.message ??
+    body.messages?.[0]?.text?.body ??
+    body.messages?.[0]?.template?.name ??
+    null
+
+  const whatsappMessageId =
+    body.whatsapp_message_id ??
+    body.messages?.[0]?.id ??
+    body.message_id ??
+    null
+
+  const messageStatus =
+    body.message_status ??
+    body.messages?.[0]?.message_status ??
+    body.status ??
+    null
+
+  const direction = typeof body.direction === 'string' ? body.direction : 'outbound'
+  const status = parseError ? 'error' : (body.status === 'error' ? 'error' : 'success')
+  const error = parseError || body.error || null
+
+  try {
     await db.insert(integrationMessageLogs).values({
       organizationId: ORGANIZATION_ID,
       source: 'n8n',
-      direction: body.direction || 'outbound',
-      phone: phone ? String(phone) : null,
-      content,
-      status: body.status === 'error' ? 'error' : 'success',
-      error: body.error || null,
-      payload: { ...body, whatsapp_message_id: whatsappMessageId, message_status: messageStatus },
+      direction,
+      phone: phone != null ? String(phone) : null,
+      content: content != null ? String(content) : null,
+      status,
+      error,
+      payload: {
+        raw,
+        parsed: parsed ?? null,
+        whatsapp_message_id: whatsappMessageId,
+        message_status: messageStatus,
+      },
     })
-
-    return Response.json({ status: 'ok' })
   } catch (err: any) {
-    return apiError(err.status || 500, err.message || 'Erro interno.')
+    console.error('[n8n-log] erro ao salvar log:', err)
   }
+
+  // Sempre responde 200 para não quebrar o fluxo do n8n
+  return Response.json({ status: 'ok' })
 }
