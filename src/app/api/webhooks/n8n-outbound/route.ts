@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
         direction: 'outbound',
         send_status: 'sent',
         sender_name: body.sender_name,
+        whatsapp_message_id: body.whatsapp_message_id,
+        whatsapp_status: body.message_status,
       },
     }).returning({ id: leadActivities.id })
 
