@@ -136,9 +136,9 @@ export async function POST(req: NextRequest) {
 
     await db.update(leads).set({
       lastMessageContent: content,
-      lastMessageSenderType: 'automated',
+      lastMessageSenderType: 'human',
       lastActivityAt: new Date(),
-      isUnread: true,
+      isUnread: false,
     }).where(eq(leads.id, leadId))
 
     await publishEvent(channels.leadActivities(leadId), events.ACTIVITY_CREATED, { id: activity.id })
