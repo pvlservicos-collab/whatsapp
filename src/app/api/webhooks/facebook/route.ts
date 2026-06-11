@@ -11,7 +11,7 @@
  */
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { leads, leadActivities, pipelineStages } from '@/lib/schema'
+import { leads, leadActivities, pipelineStages, integrationMessageLogs } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
@@ -107,6 +107,17 @@ export async function POST(req: NextRequest) {
 
     await publishEvent(channels.leadActivities(leadId), events.ACTIVITY_CREATED, { id: activity.id })
     await publishEvent(channels.orgLeads(orgId), events.LEAD_UPDATED, { id: leadId })
+
+    await db.insert(integrationMessageLogs).values({
+      organizationId: orgId,
+      source: isOutboundEcho ? 'whatsapp_app' : 'facebook_cloud',
+      direction: isOutboundEcho ? 'outbound' : 'inbound',
+      phone,
+      content,
+      leadId,
+      status: 'success',
+      payload: body,
+    })
 
     return Response.json({ status: 'ok' })
   } catch (err: any) {
