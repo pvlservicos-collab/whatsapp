@@ -56,7 +56,12 @@ export async function POST(req: NextRequest) {
 
     if (!orgId) return Response.json({ status: 'ignored: org not found' })
 
-    const phone = message.from
+    // Detecta "echo" de mensagem enviada pelo próprio número (ex: enviada via app oficial do WhatsApp)
+    const ownNumber = (value?.metadata?.display_phone_number || '').replace(/\D/g, '')
+    const fromNumber = (message.from || '').replace(/\D/g, '')
+    const isOutboundEcho = !!ownNumber && ownNumber === fromNumber
+
+    const phone = isOutboundEcho ? (value?.contacts?.[0]?.wa_id || message.from) : message.from
     const content = message.text?.body || (message.type === 'image' ? '📷 Imagem' : '[Mídia recebida]')
     const senderName = value?.contacts?.[0]?.profile?.name || phone
 
@@ -86,14 +91,18 @@ export async function POST(req: NextRequest) {
       leadId,
       type: 'whatsapp',
       content,
-      metadata: { direction: 'inbound', source: 'facebook_cloud', sender_name: senderName },
+      metadata: {
+        direction: isOutboundEcho ? 'outbound' : 'inbound',
+        source: isOutboundEcho ? 'whatsapp_app' : 'facebook_cloud',
+        sender_name: senderName,
+      },
     }).returning({ id: leadActivities.id })
 
     await db.update(leads).set({
       lastMessageContent: content,
-      lastMessageSenderType: 'lead',
+      lastMessageSenderType: isOutboundEcho ? 'agent' : 'lead',
       lastActivityAt: new Date(),
-      isUnread: true,
+      isUnread: !isOutboundEcho,
     }).where(eq(leads.id, leadId))
 
     await publishEvent(channels.leadActivities(leadId), events.ACTIVITY_CREATED, { id: activity.id })
