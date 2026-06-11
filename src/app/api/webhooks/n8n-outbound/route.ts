@@ -134,12 +134,20 @@ export async function POST(req: NextRequest) {
       },
     }).returning({ id: leadActivities.id })
 
-    await db.update(leads).set({
+    const leadUpdates: any = {
       lastMessageContent: content,
       lastMessageSenderType: 'human',
       lastActivityAt: new Date(),
       isUnread: false,
-    }).where(eq(leads.id, leadId))
+    }
+
+    // Ao responder o lead, move a conversa para o pipeline "Em atendimento"
+    const [emAtendimento] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
+      .where(and(eq(pipelineStages.organizationId, ORGANIZATION_ID), isNull(pipelineStages.deletedAt), ilike(pipelineStages.name, 'Em atendimento')))
+      .limit(1)
+    if (emAtendimento) leadUpdates.stageId = emAtendimento.id
+
+    await db.update(leads).set(leadUpdates).where(eq(leads.id, leadId))
 
     await publishEvent(channels.leadActivities(leadId), events.ACTIVITY_CREATED, { id: activity.id })
     await publishEvent(channels.orgLeads(ORGANIZATION_ID), events.LEAD_UPDATED, { id: leadId })

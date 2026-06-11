@@ -32,8 +32,8 @@ export default function LoginForm() {
         return
       }
 
-      // Redireciona para a página principal após login
-      router.push('/')
+      // Redireciona direto para o chat após login
+      router.push('/chat')
       router.refresh()
     } catch (err) {
       setError('Ocorreu um erro. Tente novamente.')

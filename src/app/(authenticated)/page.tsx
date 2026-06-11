@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect } from 'react'
 import { useAuth } from '@/hooks'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -11,6 +12,11 @@ export default function Home() {
   const { loading, permissions, isMaster, roleName } = useAuth()
   const { addNotification } = useNotification()
   const router = useRouter()
+
+  // Abre o chat direto ao acessar o app
+  useEffect(() => {
+    router.replace('/chat')
+  }, [router])
 
   // Security Check Check
   const isAdmin = isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner'

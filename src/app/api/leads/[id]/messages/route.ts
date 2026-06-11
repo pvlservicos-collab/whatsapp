@@ -197,6 +197,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
+    // Ao responder o lead, move a conversa para o pipeline "Em atendimento"
+    if (direction === 'outbound' && body.type === 'whatsapp') {
+      const [stage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
+        .where(and(eq(pipelineStages.organizationId, auth.organizationId), isNull(pipelineStages.deletedAt), ilike(pipelineStages.name, 'Em atendimento')))
+        .limit(1)
+      if (stage) updates.stageId = stage.id
+    }
+
     await db.update(leads).set(updates).where(eq(leads.id, actualLeadId))
 
     // Publicar evento realtime

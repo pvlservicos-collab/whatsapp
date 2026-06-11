@@ -1,9 +1,19 @@
 import { db } from '@/lib/db'
-import { leads, leadActivities, pipelineStages, integrationMessageLogs } from '@/lib/schema'
+import { leads, leadActivities, pipelineStages, integrationMessageLogs, tags, leadTags } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
 export const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
+
+// Pipeline e tag de origem aplicados quando o lead entra via cada webhook automático.
+const STAGE_NAME_BY_SOURCE: Record<string, string> = {
+  recuperacao: 'Novo Reculperação',
+  figurinha_liberada: 'Novo pago',
+}
+const TAG_BY_SOURCE: Record<string, { name: string; color: string }> = {
+  recuperacao: { name: 'Recuperação', color: '#f97316' },
+  figurinha_liberada: { name: 'Pago', color: '#22c55e' },
+}
 
 /**
  * Registra no CRM uma mensagem automática (template) como se tivesse sido
@@ -27,19 +37,46 @@ export async function sendAutomatedMessage(opts: {
 
   let leadId = existing?.id
   if (!leadId) {
-    const [firstStage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
-      .where(and(eq(pipelineStages.organizationId, ORGANIZATION_ID), isNull(pipelineStages.deletedAt)))
-      .orderBy(asc(pipelineStages.rank)).limit(1)
+    const stageName = STAGE_NAME_BY_SOURCE[source]
+    let stageId: string | null = null
+    if (stageName) {
+      const [stage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
+        .where(and(eq(pipelineStages.organizationId, ORGANIZATION_ID), isNull(pipelineStages.deletedAt), ilike(pipelineStages.name, stageName)))
+        .limit(1)
+      stageId = stage?.id || null
+    }
+    if (!stageId) {
+      const [firstStage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
+        .where(and(eq(pipelineStages.organizationId, ORGANIZATION_ID), isNull(pipelineStages.deletedAt)))
+        .orderBy(asc(pipelineStages.rank)).limit(1)
+      stageId = firstStage?.id || null
+    }
 
     const [newLead] = await db.insert(leads).values({
       organizationId: ORGANIZATION_ID,
       title: phone,
       phone,
-      stageId: firstStage?.id || null,
+      stageId,
       lastActivityAt: new Date(),
       customAttributes: { source },
     }).returning({ id: leads.id })
     leadId = newLead.id
+  }
+
+  // Marca a origem do lead com uma tag visível no painel do contato
+  const tagInfo = TAG_BY_SOURCE[source]
+  if (tagInfo) {
+    let [tag] = await db.select({ id: tags.id }).from(tags)
+      .where(and(eq(tags.organizationId, ORGANIZATION_ID), ilike(tags.name, tagInfo.name)))
+      .limit(1)
+    if (!tag) {
+      [tag] = await db.insert(tags).values({
+        organizationId: ORGANIZATION_ID,
+        name: tagInfo.name,
+        color: tagInfo.color,
+      }).returning({ id: tags.id })
+    }
+    await db.insert(leadTags).values({ leadId, tagId: tag.id, organizationId: ORGANIZATION_ID }).onConflictDoNothing()
   }
 
   const [activity] = await db.insert(leadActivities).values({
