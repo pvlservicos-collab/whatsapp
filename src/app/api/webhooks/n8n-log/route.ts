@@ -14,8 +14,14 @@ const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
  * - aceita tanto { phone, content, ... } quanto a resposta crua da API do
  *   WhatsApp (com "contacts"/"messages"), extraindo phone/content/whatsapp_message_id
  *   de vários formatos possíveis
+ *
+ * Para identificar de qual fluxo do n8n veio o log, adicione ?flow=NOME na URL
+ * do webhook (ex: .../api/webhooks/n8n-log?flow=figurinha_aprovada). O valor
+ * aparece na coluna "Origem" da aba de Logs como "n8n:NOME".
  */
 export async function POST(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const flow = searchParams.get('flow')
   const raw = await req.text()
 
   let parsed: any = null
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
   try {
     await db.insert(integrationMessageLogs).values({
       organizationId: ORGANIZATION_ID,
-      source: 'n8n',
+      source: flow ? `n8n:${flow}` : 'n8n',
       direction,
       phone: phone != null ? String(phone) : null,
       content: content != null ? String(content) : null,
