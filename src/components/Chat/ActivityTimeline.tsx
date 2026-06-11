@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { Sparkle, X, MagnifyingGlassPlus, Play, Pause, Microphone, ArrowBendUpLeft } from '@phosphor-icons/react'
+import { Sparkle, X, MagnifyingGlassPlus, Play, Pause, Microphone, ArrowBendUpLeft, Check, WarningCircle } from '@phosphor-icons/react'
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -407,8 +407,15 @@ function MessageBubble({
                 <span className="inline-block w-[2.5rem]" />
               </p>
             )}
-            <span className="absolute bottom-1 right-2.5 text-[10px] text-white/70 whitespace-nowrap">
+            <span className="absolute bottom-1 right-2.5 text-[10px] text-white/70 whitespace-nowrap flex items-center gap-1">
               {formatTime(activity.created_at)}
+              {activity.metadata?.send_status === 'failed' ? (
+                <span title={activity.metadata?.send_error || 'Falha ao enviar'}>
+                  <WarningCircle size={13} weight="fill" className="text-red-300" />
+                </span>
+              ) : activity.metadata?.send_status === 'sent' ? (
+                <Check size={13} weight="bold" className="text-white/70" />
+              ) : null}
             </span>
           </div>
 
