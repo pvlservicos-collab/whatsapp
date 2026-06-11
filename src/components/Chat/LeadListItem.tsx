@@ -32,7 +32,9 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         ? (lead.last_message_sender_type === 'lead'
             ? 'linear-gradient(to right, rgba(34,197,94,0.18), transparent 60%)'
             : 'linear-gradient(to right, rgba(59,130,246,0.18), transparent 60%)')
-        : undefined
+        : (lead.last_message_sender_type === 'human'
+            ? 'linear-gradient(to right, rgba(45,212,191,0.18), transparent 60%)'
+            : undefined)
 
     return (
         <div className="w-full flex-shrink-0 relative">

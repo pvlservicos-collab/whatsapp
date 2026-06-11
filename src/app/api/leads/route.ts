@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       .select()
       .from(leads)
       .where(and(...conditions))
-      .orderBy(desc(leads.createdAt))
+      .orderBy(desc(sql`coalesce(${leads.lastActivityAt}, ${leads.createdAt})`))
 
     const data = returnAll ? await query : await query.limit(limit).offset(offset)
 
