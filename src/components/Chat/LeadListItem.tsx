@@ -28,6 +28,12 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         iconColor = 'text-violet-600'
     }
 
+    const unreadGradient = lead.is_unread
+        ? (lead.last_message_sender_type === 'lead'
+            ? 'linear-gradient(to right, rgba(34,197,94,0.18), transparent 60%)'
+            : 'linear-gradient(to right, rgba(59,130,246,0.18), transparent 60%)')
+        : undefined
+
     return (
         <div className="w-full flex-shrink-0 relative">
             <button
@@ -37,6 +43,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                     ? 'bg-blue-50/50 border-l-[3px] border-l-cyan-400'
                     : 'hover:bg-gray-50 border-l-[3px] border-l-transparent'
                     }`}
+                style={unreadGradient ? { background: unreadGradient } : undefined}
             >
                 <div className="flex items-center gap-3 w-full">
                     {/* Avatar */}
