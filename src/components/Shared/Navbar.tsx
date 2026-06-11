@@ -14,6 +14,7 @@ import {
   Gear, // Changed from GearSix
   SignOut, // Added
   Buildings,
+  ListBullets,
 } from '@phosphor-icons/react'
 import { useAuth, usePipeline } from '@/hooks' // Kept usePipeline from '@/hooks'
 import { signOut } from 'next-auth/react'
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { label: 'Pipeline', href: '/pipeline', icon: Kanban },
   { label: 'Chat', href: '/chat', icon: ChatCircleDots },
   // { label: 'Leads', href: '/leads', icon: Users }, // Temporariamente desativado
+  { label: 'Logs', href: '/logs', icon: ListBullets },
   { label: 'Configurações', href: '/settings/organization', icon: Gear },
 ]
 
@@ -90,6 +92,7 @@ export default function Navbar() {
       case 'Leads': return !!permissions.settings?.view_leads
       case 'Pipeline': return !!permissions.settings?.view_pipeline
       case 'Chat': return !!permissions.settings?.view_chat
+      case 'Logs': return !!permissions.settings?.view_settings
       case 'Configurações': return !!permissions.settings?.view_settings
       default: return false
     }

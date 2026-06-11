@@ -237,6 +237,21 @@ export const apiTokens = pgTable('api_tokens', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
+// ── Integration Message Logs (n8n e outros sistemas externos) ────────────────
+export const integrationMessageLogs = pgTable('integration_message_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  source: text('source').notNull(),
+  direction: text('direction'),
+  phone: text('phone'),
+  content: text('content'),
+  leadId: uuid('lead_id'),
+  status: text('status').notNull(),
+  error: text('error'),
+  payload: jsonb('payload'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 export const notifications = pgTable('notifications', {
   id: uuid('id').defaultRandom().primaryKey(),
