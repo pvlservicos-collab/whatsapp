@@ -6,6 +6,7 @@ import {
   leads, leadActivities, pipelineStages, organizationMembers, profiles,
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, sql } from 'drizzle-orm'
+import { sendWhatsAppMessage } from '@/lib/whatsapp'
 
 /**
  * GET /api/leads/[id]/messages
@@ -150,6 +151,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (body.reply_to_message_id) metadata.reply_to_message_id = body.reply_to_message_id
     if (body.media_url) metadata.media_url = body.media_url
     if (body.media_type) metadata.media_type = body.media_type
+
+    // Envia de fato pelo WhatsApp Cloud API quando for mensagem de saída
+    if (direction === 'outbound' && body.type === 'whatsapp') {
+      const phone = lead?.phone || decodedPhone
+      try {
+        const result = await sendWhatsAppMessage(auth.organizationId, phone, body.content)
+        metadata.whatsapp_message_id = result?.messages?.[0]?.id
+        metadata.send_status = 'sent'
+      } catch (err: any) {
+        metadata.send_status = 'failed'
+        metadata.send_error = err.message || 'Erro ao enviar mensagem.'
+      }
+    }
 
     const [activity] = await db
       .insert(leadActivities)
