@@ -1,7 +1,8 @@
 import { db } from '@/lib/db'
-import { leads, leadActivities, pipelineStages, integrationMessageLogs, tags, leadTags } from '@/lib/schema'
+import { leads, leadActivities, pipelineStages, integrationMessageLogs, tags, leadTags, messageFunnels } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
+import { startExecution } from '@/lib/funnel-engine'
 
 export const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
 
@@ -13,6 +14,11 @@ const STAGE_NAME_BY_SOURCE: Record<string, string> = {
 const TAG_BY_SOURCE: Record<string, { name: string; color: string }> = {
   recuperacao: { name: 'Recuperação', color: '#f97316' },
   figurinha_liberada: { name: 'Pago', color: '#22c55e' },
+}
+// Gatilho de funil de mensagens correspondente a cada webhook automático.
+const FUNNEL_TRIGGER_BY_SOURCE: Record<string, 'novo_pago' | 'novo_recuperacao'> = {
+  recuperacao: 'novo_recuperacao',
+  figurinha_liberada: 'novo_pago',
 }
 
 /**
@@ -112,6 +118,23 @@ export async function sendAutomatedMessage(opts: {
     status: 'success',
     payload: { raw, parsed },
   })
+
+  // Dispara funis de mensagens ativos com gatilho correspondente, para leads novos
+  if (!existing) {
+    const triggerType = FUNNEL_TRIGGER_BY_SOURCE[source]
+    if (triggerType) {
+      const funnels = await db.select({ id: messageFunnels.id }).from(messageFunnels)
+        .where(and(
+          eq(messageFunnels.organizationId, ORGANIZATION_ID),
+          eq(messageFunnels.trigger, triggerType),
+          eq(messageFunnels.isActive, true),
+          isNull(messageFunnels.deletedAt),
+        ))
+      for (const funnel of funnels) {
+        await startExecution(funnel.id, ORGANIZATION_ID, leadId)
+      }
+    }
+  }
 
   return { leadId, activityId: activity.id }
 }

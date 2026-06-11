@@ -281,3 +281,70 @@ export const webhookLogs = pgTable('webhook_logs', {
   payload: jsonb('payload'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
+
+// ── Funil de Mensagens ────────────────────────────────────────────────────────
+export const funnelTriggerEnum = pgEnum('funnel_trigger', ['novo_pago', 'novo_recuperacao'])
+export const funnelBlockTypeEnum = pgEnum('funnel_block_type', ['trigger', 'message', 'wait', 'condition', 'end'])
+export const funnelBranchEnum = pgEnum('funnel_branch', ['default', 'yes', 'no'])
+export const funnelExecutionStatusEnum = pgEnum('funnel_execution_status', ['running', 'waiting', 'waiting_condition', 'completed', 'stopped'])
+
+export const messageFunnels = pgTable('message_funnels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  name: text('name').notNull(),
+  trigger: funnelTriggerEnum('trigger').notNull(),
+  isActive: boolean('is_active').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+})
+
+export const funnelBlocks = pgTable('funnel_blocks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  funnelId: uuid('funnel_id').notNull().references(() => messageFunnels.id, { onDelete: 'cascade' }),
+  type: funnelBlockTypeEnum('type').notNull(),
+  config: jsonb('config').default({}),
+  positionX: numeric('position_x', { precision: 10, scale: 2 }).default('0'),
+  positionY: numeric('position_y', { precision: 10, scale: 2 }).default('0'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const funnelConnections = pgTable('funnel_connections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  funnelId: uuid('funnel_id').notNull().references(() => messageFunnels.id, { onDelete: 'cascade' }),
+  sourceBlockId: uuid('source_block_id').notNull().references(() => funnelBlocks.id, { onDelete: 'cascade' }),
+  targetBlockId: uuid('target_block_id').notNull().references(() => funnelBlocks.id, { onDelete: 'cascade' }),
+  branch: funnelBranchEnum('branch').default('default'),
+})
+
+export const funnelExecutions = pgTable('funnel_executions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  funnelId: uuid('funnel_id').notNull().references(() => messageFunnels.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').notNull(),
+  leadId: uuid('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  currentBlockId: uuid('current_block_id'),
+  status: funnelExecutionStatusEnum('status').default('running'),
+  waitUntil: timestamp('wait_until', { withTimezone: true }),
+  context: jsonb('context').default({}),
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const funnelClickEvents = pgTable('funnel_click_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  executionId: uuid('execution_id').notNull().references(() => funnelExecutions.id, { onDelete: 'cascade' }),
+  blockId: uuid('block_id').notNull(),
+  token: text('token').notNull().unique(),
+  targetUrl: text('target_url').notNull(),
+  clicked: boolean('clicked').default(false),
+  clickedAt: timestamp('clicked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const funnelResponseEvents = pgTable('funnel_response_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  executionId: uuid('execution_id').notNull().references(() => funnelExecutions.id, { onDelete: 'cascade' }),
+  blockId: uuid('block_id').notNull(),
+  branch: funnelBranchEnum('branch').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})

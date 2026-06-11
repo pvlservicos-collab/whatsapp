@@ -21,6 +21,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "@scalar/nextjs-api-reference": "^0.9.24",
     "@vercel/blob": "^0.27.0",
+    "@xyflow/react": "^12.11.0",
     "bcryptjs": "^2.4.3",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
