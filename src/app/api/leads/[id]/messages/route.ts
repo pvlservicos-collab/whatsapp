@@ -153,7 +153,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (body.media_type) metadata.media_type = body.media_type
 
     // Envia de fato pelo WhatsApp Cloud API quando for mensagem de saída
-    if (direction === 'outbound' && body.type === 'whatsapp') {
+    // (skip_send: true quando o envio já foi feito por um sistema externo, ex: n8n)
+    if (direction === 'outbound' && body.type === 'whatsapp' && !body.skip_send) {
       const phone = lead?.phone || decodedPhone
       try {
         const result = await sendWhatsAppMessage(auth.organizationId, phone, body.content)
@@ -163,6 +164,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         metadata.send_status = 'failed'
         metadata.send_error = err.message || 'Erro ao enviar mensagem.'
       }
+    } else if (direction === 'outbound' && body.type === 'whatsapp' && body.skip_send) {
+      metadata.send_status = 'sent'
     }
 
     const [activity] = await db
