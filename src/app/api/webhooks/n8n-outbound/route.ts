@@ -63,9 +63,9 @@ export async function POST(req: NextRequest) {
     null
 
   try {
-    if (parseError) throw { status: 400, message: parseError }
-    if (!phone) throw { status: 400, message: 'Não foi possível identificar o telefone (phone) na mensagem.' }
-    if (!content) throw { status: 400, message: 'Não foi possível identificar o conteúdo (content) da mensagem.' }
+    if (parseError) throw { status: 200, message: parseError }
+    if (!phone) throw { status: 200, message: 'Não foi possível identificar o telefone (phone) na mensagem. Nenhum lead foi atualizado.' }
+    if (!content) throw { status: 200, message: 'Não foi possível identificar o conteúdo (content) da mensagem. Nenhum lead foi atualizado.' }
 
     const [existing] = await db.select({ id: leads.id, title: leads.title })
       .from(leads)

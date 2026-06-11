@@ -27,10 +27,64 @@ export async function GET(req: NextRequest) {
   return new Response('Forbidden', { status: 403 })
 }
 
+/**
+ * Baixa uma mídia do WhatsApp Cloud API e armazena no Vercel Blob.
+ * Retorna a URL pública e o mimetype, ou null se não foi possível.
+ */
+async function downloadWhatsappMedia(orgId: string, mediaId: string): Promise<{ url: string; mimetype?: string } | null> {
+  const { integrations, integrationSecrets } = await import('@/lib/schema')
+
+  const [integration] = await db.select({ id: integrations.id, config: integrations.config })
+    .from(integrations)
+    .where(and(eq(integrations.organizationId, orgId), eq(integrations.type, 'whatsapp_cloud_official'), isNull(integrations.deletedAt)))
+    .limit(1)
+  if (!integration) return null
+
+  const [secretRow] = await db.select({ secret: integrationSecrets.secret })
+    .from(integrationSecrets)
+    .where(eq(integrationSecrets.integrationId, integration.id))
+    .limit(1)
+
+  const config = integration.config as { graph_api_version?: string }
+  const secret = secretRow?.secret as { system_token?: string } | undefined
+  if (!secret?.system_token) return null
+
+  const apiVersion = config?.graph_api_version || 'v21.0'
+  const token = secret.system_token
+
+  const metaRes = await fetch(`https://graph.facebook.com/${apiVersion}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!metaRes.ok) return null
+  const meta = await metaRes.json()
+  if (!meta?.url) return null
+
+  const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!fileRes.ok) return null
+  const buffer = Buffer.from(await fileRes.arrayBuffer())
+
+  const { put } = await import('@vercel/blob')
+  const ext = (meta.mime_type || '').split('/')[1]?.split(';')[0] || 'bin'
+  const blob = await put(`whatsapp-media/${orgId}/${mediaId}.${ext}`, buffer, {
+    access: 'public',
+    contentType: meta.mime_type || 'application/octet-stream',
+  })
+
+  return { url: blob.url, mimetype: meta.mime_type }
+}
+
+const MEDIA_TYPES = ['image', 'video', 'audio', 'document', 'sticker'] as const
+const MEDIA_LABELS: Record<string, string> = {
+  image: '📷 Imagem',
+  video: '🎥 Vídeo',
+  audio: '🎵 Áudio',
+  document: '📄 Documento',
+  sticker: '✨ Figurinha',
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    console.log('[Facebook Webhook] payload:', JSON.stringify(body))
 
     const entry = body.entry?.[0]
     const changes = entry?.changes?.[0]
@@ -62,8 +116,38 @@ export async function POST(req: NextRequest) {
     const isOutboundEcho = !!ownNumber && ownNumber === fromNumber
 
     const phone = isOutboundEcho ? (value?.contacts?.[0]?.wa_id || message.from) : message.from
-    const content = message.text?.body || (message.type === 'image' ? '📷 Imagem' : '[Mídia recebida]')
     const senderName = value?.contacts?.[0]?.profile?.name || phone
+
+    // Mídia (imagem, áudio, vídeo, documento, figurinha)
+    let mediaUrl: string | undefined
+    let mediaType: string | undefined
+    let mediaMimetype: string | undefined
+    let mediaFilename: string | undefined
+    let content = message.text?.body || ''
+
+    if ((MEDIA_TYPES as readonly string[]).includes(message.type)) {
+      mediaType = message.type
+      const mediaObj = message[message.type]
+      mediaMimetype = mediaObj?.mime_type
+      mediaFilename = mediaObj?.filename
+      if (mediaObj?.caption) content = mediaObj.caption
+
+      if (mediaObj?.id) {
+        try {
+          const downloaded = await downloadWhatsappMedia(orgId, mediaObj.id)
+          if (downloaded) {
+            mediaUrl = downloaded.url
+            mediaMimetype = downloaded.mimetype || mediaMimetype
+          }
+        } catch (err) {
+          console.error('[Facebook Webhook] media download failed', err)
+        }
+      }
+
+      if (!content) content = MEDIA_LABELS[message.type] || '[Mídia recebida]'
+    } else if (!content) {
+      content = '[Mídia recebida]'
+    }
 
     // Buscar ou criar lead
     const [existing] = await db.select({ id: leads.id }).from(leads)
@@ -95,6 +179,7 @@ export async function POST(req: NextRequest) {
         direction: isOutboundEcho ? 'outbound' : 'inbound',
         source: isOutboundEcho ? 'whatsapp_app' : 'facebook_cloud',
         sender_name: senderName,
+        ...(mediaUrl ? { media_url: mediaUrl, media_type: mediaType, media_mimetype: mediaMimetype, ...(mediaFilename ? { media_filename: mediaFilename } : {}) } : {}),
       },
     }).returning({ id: leadActivities.id })
 
