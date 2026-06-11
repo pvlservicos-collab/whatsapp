@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { Sparkle, X, MagnifyingGlassPlus, Play, Pause, Microphone, ArrowBendUpLeft, Check, WarningCircle } from '@phosphor-icons/react'
+import { Sparkle, X, MagnifyingGlassPlus, Play, Pause, Microphone, ArrowBendUpLeft, Check, WarningCircle, Lightning } from '@phosphor-icons/react'
 import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
@@ -43,12 +43,14 @@ function getDateKey(date: Date): string {
 }
 
 // ── Determine sender type ──
-type SenderType = 'lead' | 'ai' | 'user' | 'system_other'
+type SenderType = 'lead' | 'ai' | 'user' | 'automated' | 'system_other'
 
 function getSenderType(activity: LeadActivityWithActor): SenderType {
   if (activity.type === 'note' || activity.type === 'call' || activity.type === 'email') return 'system_other'
 
   if (activity.metadata?.direction === 'inbound') return 'lead'
+
+  if (activity.metadata?.automated) return 'automated'
 
   if (activity.metadata?.source === 'ai' || activity.metadata?.source === 'ai_agent' || activity.type === 'system') return 'ai'
 
@@ -56,7 +58,7 @@ function getSenderType(activity: LeadActivityWithActor): SenderType {
 }
 
 function isOutgoing(senderType: SenderType): boolean {
-  return senderType === 'ai' || senderType === 'user'
+  return senderType === 'ai' || senderType === 'user' || senderType === 'automated'
 }
 
 // ── Date Divider ──
@@ -348,9 +350,10 @@ function MessageBubble({
 
   if (outgoing) {
     const isAI = senderType === 'ai'
-    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : 'rgba(33, 188, 237, 0.85)'
-    const labelColor = isAI ? '#4B3BFD' : '#21BCED'
-    const label = isAI ? 'Atlas AI' : 'Você'
+    const isAutomated = senderType === 'automated'
+    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : isAutomated ? 'rgba(34, 197, 94, 0.85)' : 'rgba(33, 188, 237, 0.85)'
+    const labelColor = isAI ? '#4B3BFD' : isAutomated ? '#16A34A' : '#21BCED'
+    const label = isAI ? 'Atlas AI' : isAutomated ? 'Automático' : 'Você'
 
     return (
       <div className="flex flex-col items-end group/msg max-w-[65%] w-fit ml-auto">
@@ -365,6 +368,13 @@ function MessageBubble({
                 style={{ backgroundColor: '#4B3BFD' }}
               >
                 <Sparkle size={12} weight="fill" className="text-white" />
+              </div>
+            ) : isAutomated ? (
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: '#16A34A' }}
+              >
+                <Lightning size={12} weight="fill" className="text-white" />
               </div>
             ) : (
               <div

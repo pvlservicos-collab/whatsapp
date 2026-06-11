@@ -2,14 +2,14 @@ import { db } from '@/lib/db'
 import { leads, leadActivities, pipelineStages, integrationMessageLogs } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
 
 export const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
 
 /**
- * Envia uma mensagem automática (template) para um telefone via WhatsApp Cloud API,
- * cria/atualiza o lead e registra a conversa como se tivesse sido enviada pelo
- * número oficial da API.
+ * Registra no CRM uma mensagem automática (template) como se tivesse sido
+ * enviada pelo número oficial da API — sem enviar de fato, pois o disparo
+ * real já é feito por outro sistema (ex: API oficial do gateway de pagamento).
+ * Cria/atualiza o lead conforme necessário.
  */
 export async function sendAutomatedMessage(opts: {
   phone: string
@@ -42,17 +42,6 @@ export async function sendAutomatedMessage(opts: {
     leadId = newLead.id
   }
 
-  let whatsappMessageId: string | undefined
-  let sendStatus = 'sent'
-  let sendError: string | undefined
-  try {
-    const result = await sendWhatsAppMessage(ORGANIZATION_ID, phone, content)
-    whatsappMessageId = result?.messages?.[0]?.id
-  } catch (err: any) {
-    sendStatus = 'failed'
-    sendError = err.message || 'Erro ao enviar mensagem.'
-  }
-
   const [activity] = await db.insert(leadActivities).values({
     organizationId: ORGANIZATION_ID,
     leadId,
@@ -61,9 +50,8 @@ export async function sendAutomatedMessage(opts: {
     metadata: {
       source,
       direction: 'outbound',
-      send_status: sendStatus,
-      ...(sendError ? { send_error: sendError } : {}),
-      ...(whatsappMessageId ? { whatsapp_message_id: whatsappMessageId } : {}),
+      send_status: 'sent',
+      automated: true,
     },
   }).returning({ id: leadActivities.id })
 
@@ -83,12 +71,11 @@ export async function sendAutomatedMessage(opts: {
     phone,
     content,
     leadId,
-    status: sendStatus === 'sent' ? 'success' : 'error',
-    error: sendError,
+    status: 'success',
     payload: { raw, parsed },
   })
 
-  return { leadId, activityId: activity.id, sendStatus, sendError }
+  return { leadId, activityId: activity.id }
 }
 
 /**

@@ -55,5 +55,5 @@ E aproveita que na mesma página você também acessa todos os nossos outros pro
 
   const result = await sendAutomatedMessage({ phone, content, source: 'figurinha_liberada', raw, parsed })
 
-  return Response.json({ status: 'ok', sent: result.sendStatus === 'sent', lead_id: result.leadId, activity_id: result.activityId })
+  return Response.json({ status: 'ok', lead_id: result.leadId, activity_id: result.activityId })
 }
