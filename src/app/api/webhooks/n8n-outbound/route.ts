@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leads, leadActivities, pipelineStages, integrationMessageLogs } from '@/lib/schema'
-import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
+import { eq, and, isNull, ilike, asc, sql } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
 
 const ORGANIZATION_ID = 'bdfac9ab-68cd-4434-856c-897199dc267d'
@@ -64,6 +64,36 @@ export async function POST(req: NextRequest) {
 
   try {
     if (parseError) throw { status: 200, message: parseError }
+
+    // Atualização de status (ex: "accepted"/"delivered"/"read"), sem conteúdo novo:
+    // apenas atualiza a mensagem existente pelo whatsapp_message_id, sem criar lead/atividade.
+    if (!content && whatsappMessageId) {
+      const [activity] = await db.select({ id: leadActivities.id, leadId: leadActivities.leadId, metadata: leadActivities.metadata })
+        .from(leadActivities)
+        .where(sql`${leadActivities.metadata}->>'whatsapp_message_id' = ${whatsappMessageId}`)
+        .limit(1)
+
+      if (activity) {
+        await db.update(leadActivities)
+          .set({ metadata: { ...(activity.metadata as object), whatsapp_status: messageStatus } })
+          .where(eq(leadActivities.id, activity.id))
+        await publishEvent(channels.leadActivities(activity.leadId), events.ACTIVITY_UPDATED, { id: activity.id })
+      }
+
+      await db.insert(integrationMessageLogs).values({
+        organizationId: ORGANIZATION_ID,
+        source: 'n8n',
+        direction: 'outbound',
+        phone: phone || null,
+        content: null,
+        leadId: activity?.leadId,
+        status: 'success',
+        payload: { raw, parsed },
+      })
+
+      return Response.json({ status: 'ok', updated: !!activity })
+    }
+
     if (!phone) throw { status: 200, message: 'Não foi possível identificar o telefone (phone) na mensagem. Nenhum lead foi atualizado.' }
     if (!content) throw { status: 200, message: 'Não foi possível identificar o conteúdo (content) da mensagem. Nenhum lead foi atualizado.' }
 
