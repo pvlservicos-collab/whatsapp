@@ -46,6 +46,7 @@ export function useLeadActivities(organizationId: string, leadId: string) {
       fetchActivities(false)
     },
     'activity.updated': () => fetchActivities(false),
+    '__reconnected': () => fetchActivities(false),
   })
 
   const sendHumanMessage = async (

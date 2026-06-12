@@ -69,25 +69,11 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     organizationId ? `org-${organizationId}` : '',
     {
       'lead.created': () => fetchLeads(),
-      'lead.updated': (data: any) => {
-        if (data?.id) {
-          setLeads(prev => {
-            const updated = prev.map(l => l.id === data.id
-              ? { ...l, ...data, last_activity_at: data.last_activity_at || new Date().toISOString() }
-              : l)
-            return [...updated].sort((a, b) => {
-              const ta = new Date(a.last_activity_at || a.created_at).getTime()
-              const tb = new Date(b.last_activity_at || b.created_at).getTime()
-              return tb - ta
-            })
-          })
-        } else {
-          fetchLeads()
-        }
-      },
+      'lead.updated': () => fetchLeads(),
       'lead.deleted': (data: any) => {
         if (data?.id) setLeads(prev => prev.filter(l => l.id !== data.id))
       },
+      '__reconnected': () => fetchLeads(),
     }
   )
 

@@ -48,6 +48,7 @@ export function useLeads(
     'lead.created': fetchLeads,
     'lead.updated': fetchLeads,
     'lead.deleted': fetchLeads,
+    '__reconnected': fetchLeads,
   })
 
   if (options?.stageId) {
