@@ -115,7 +115,7 @@ export default function ActivityComposer({
   const getButtonStateClass = (key: ChatButtonKey, baseClasses: string) => {
     const isThisButton = webhookStatus?.key === key
     const status = isThisButton ? webhookStatus?.status : null
-    if (status === 'success') return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+    if (status === 'success') return 'bg-sky-500/10 border-sky-500/30 text-sky-300'
     if (status === 'error') return 'bg-red-500/10 border-red-500/30 text-red-300'
     if (status === 'sending') return 'bg-[#202c33] border-[#2f3b44] text-[#667781] cursor-wait'
     return baseClasses
@@ -171,7 +171,7 @@ export default function ActivityComposer({
           <button
             onClick={() => handleChatButtonClick('resumir_conversa')}
             disabled={webhookStatus?.key === 'resumir_conversa' && webhookStatus.status === 'sending'}
-            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('resumir_conversa', 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20')}`}
+            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('resumir_conversa', 'border-sky-500/30 text-sky-300 bg-sky-500/10 hover:bg-sky-500/20')}`}
           >
             <ChatText size={14} weight="bold" />
             Resumir conversa

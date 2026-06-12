@@ -94,7 +94,7 @@ export default function LeadDetailsSidebar({
 
     const base = "flex flex-col items-center justify-center gap-1.5 h-[76px] px-2 border rounded-xl transition-all duration-200 active:scale-[0.96]"
 
-    if (status === 'success') return `${base} bg-emerald-500/10 border-emerald-500/30 shadow-sm ring-1 ring-emerald-500/10`
+    if (status === 'success') return `${base} bg-sky-500/10 border-sky-500/30 shadow-sm ring-1 ring-sky-500/10`
     if (status === 'error') return `${base} bg-red-500/10 border-red-500/30 shadow-sm ring-1 ring-red-500/10`
     if (status === 'sending') return `${base} bg-[#202c33] border-[#2f3b44] opacity-80 cursor-wait`
 
@@ -105,7 +105,7 @@ export default function LeadDetailsSidebar({
     const isThisButton = webhookStatus?.key === key
     const status = isThisButton ? webhookStatus?.status : null
 
-    if (status === 'success') return <Check size={24} weight="bold" className="text-emerald-400 animate-in zoom-in duration-200" />
+    if (status === 'success') return <Check size={24} weight="bold" className="text-sky-400 animate-in zoom-in duration-200" />
     if (status === 'error') return <X size={24} weight="bold" className="text-red-400 animate-in zoom-in duration-200" />
     if (status === 'sending') return (
       <svg className="animate-spin h-5 w-5 text-[#667781]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -121,7 +121,7 @@ export default function LeadDetailsSidebar({
     const isThisButton = webhookStatus?.key === key
     const status = isThisButton ? webhookStatus?.status : null
 
-    if (status === 'success') return 'text-emerald-400'
+    if (status === 'success') return 'text-sky-400'
     if (status === 'error') return 'text-red-400'
     return 'text-[#d1d7db]'
   }
@@ -416,7 +416,7 @@ export default function LeadDetailsSidebar({
               )}
               {summarizeEnabled && (
                 <button disabled={webhookStatus?.key === 'resumir_conversa' && webhookStatus.status === 'sending'} onClick={() => handleSidebarWebhook('resumir_conversa')} className={getSidebarButtonStyles('resumir_conversa', 'bg-[#2a3942]')}>
-                  {renderSidebarButtonIcon('resumir_conversa', ChatText, 'text-emerald-400')}
+                  {renderSidebarButtonIcon('resumir_conversa', ChatText, 'text-sky-400')}
                   <span className={`text-[11px] font-bold flex items-center text-center leading-tight ${getSidebarButtonTextClass('resumir_conversa')}`}>
                     Resumir<br />Conversa
                   </span>
