@@ -71,7 +71,6 @@ export function useLeadActivities(organizationId: string, leadId: string) {
         direction: 'outbound',
         source: 'human',
         status: 'sent',
-        sender_name: 'Atendente',
         is_optimistic: true,
         ...(replyMessageId && replyPreview
           ? { quoted_text: replyPreview.text, quoted_sender: replyPreview.sender, quoted_stanza_id: replyMessageId }
@@ -88,7 +87,6 @@ export function useLeadActivities(organizationId: string, leadId: string) {
         type,
         source: 'human',
         direction: 'outbound',
-        sender_name: 'Atendente',
       }
       if (replyMessageId) body.reply_to_message_id = replyMessageId
 
