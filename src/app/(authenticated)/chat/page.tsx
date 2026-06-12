@@ -204,7 +204,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-56px)] gap-0">
       {/* Left — Lead List */}
-      <div className="w-[340px] border-r border-gray-200 flex-shrink-0">
+      <div className="w-[340px] border-r border-[#2f3b44] flex-shrink-0">
         <LeadList
           leads={allLeads}
           selectedLeadId={displayedLead?.id}
@@ -223,7 +223,7 @@ export default function ChatPage() {
             onMessageSent={handleChatMessageSent}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full bg-[#0b141a] text-[#8696a0]">
             Integre alguma fonte de conversas
           </div>
         )}

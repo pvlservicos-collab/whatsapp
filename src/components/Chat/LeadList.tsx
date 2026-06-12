@@ -193,25 +193,25 @@ export default function LeadList({
   const visibleHits = filteredHits.slice(0, displayLimit)
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+    <div className="flex flex-col h-full bg-[#111b21] border-r border-[#2f3b44]">
       {/* Search Bar */}
-      <div className="p-3 border-b border-gray-100">
+      <div className="p-3 border-b border-[#2f3b44]">
         <div className="relative">
-          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar leads..."
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-shadow"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-[#2f3b44] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#53bdeb] bg-[#202c33] text-[#e9edef] placeholder-[#8696a0] transition-shadow"
           />
         </div>
       </div>
 
       {/* Leads List */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll">
         {filteredHits.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+          <div className="flex items-center justify-center h-full text-[#8696a0] text-sm">
             {searching ? 'Buscando…' : 'Nenhum lead encontrado'}
           </div>
         ) : (
@@ -242,7 +242,7 @@ export default function LeadList({
       {contextMenu.visible && (
         <div
           ref={menuRef}
-          className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
+          className="fixed z-50 bg-[#233138] rounded-xl shadow-xl border border-[#2f3b44] py-1.5 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
@@ -250,9 +250,9 @@ export default function LeadList({
         >
           <button
             onClick={handleTogglePin}
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+            className="w-full text-left px-4 py-2 text-sm text-[#e9edef] hover:bg-[#2a3942] flex items-center gap-2.5 transition-colors"
           >
-            <PushPin size={16} weight={contextMenu.lead?.is_pinned ? 'regular' : 'fill'} className={contextMenu.lead?.is_pinned ? 'text-gray-400' : 'text-blue-500 -rotate-45'} />
+            <PushPin size={16} weight={contextMenu.lead?.is_pinned ? 'regular' : 'fill'} className={contextMenu.lead?.is_pinned ? 'text-[#8696a0]' : 'text-[#53bdeb] -rotate-45'} />
             {contextMenu.lead?.is_pinned ? 'Desafixar conversa' : 'Fixar conversa'}
           </button>
         </div>

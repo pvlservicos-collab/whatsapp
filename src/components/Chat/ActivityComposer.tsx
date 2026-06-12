@@ -115,9 +115,9 @@ export default function ActivityComposer({
   const getButtonStateClass = (key: ChatButtonKey, baseClasses: string) => {
     const isThisButton = webhookStatus?.key === key
     const status = isThisButton ? webhookStatus?.status : null
-    if (status === 'success') return 'bg-green-50 border-green-200 text-green-700'
-    if (status === 'error') return 'bg-red-50 border-red-200 text-red-700'
-    if (status === 'sending') return 'bg-gray-50 border-gray-200 text-gray-400 cursor-wait'
+    if (status === 'success') return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+    if (status === 'error') return 'bg-red-500/10 border-red-500/30 text-red-300'
+    if (status === 'sending') return 'bg-[#202c33] border-[#2f3b44] text-[#667781] cursor-wait'
     return baseClasses
   }
 
@@ -131,14 +131,14 @@ export default function ActivityComposer({
   }
 
   return (
-    <div className="px-6 pb-4 pt-2 space-y-3 relative z-10 bg-gradient-to-t from-[#F6F9FF] to-transparent">
+    <div className="px-6 pb-4 pt-2 space-y-3 relative z-10 bg-gradient-to-t from-[#0b141a] to-transparent">
       {/* Action Buttons */}
       <div className="flex gap-2 items-center mb-1 flex-wrap">
         {chatButtonSettings?.pausar_ia?.enabled && (!chatButtonSettings.pausar_ia.position || chatButtonSettings.pausar_ia.position === 'chat') && (
           <button
             onClick={() => handleChatButtonClick('pausar_ia')}
             disabled={webhookStatus?.key === 'pausar_ia' && webhookStatus.status === 'sending'}
-            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('pausar_ia', 'text-purple-600 border-purple-100 bg-purple-50 hover:bg-purple-100')}`}
+            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('pausar_ia', 'text-purple-300 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20')}`}
           >
             <Pause size={14} weight="bold" />
             Pausar IA
@@ -149,7 +149,7 @@ export default function ActivityComposer({
           <button
             onClick={() => handleChatButtonClick('sugerir_passos')}
             disabled={webhookStatus?.key === 'sugerir_passos' && webhookStatus.status === 'sending'}
-            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('sugerir_passos', 'border-gray-200 text-gray-500 bg-white hover:bg-gray-50')}`}
+            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('sugerir_passos', 'border-[#2f3b44] text-[#aebac1] bg-[#202c33] hover:bg-[#2a3942]')}`}
           >
             <Sparkle size={14} weight="bold" />
             Sugerir próximos passos
@@ -160,7 +160,7 @@ export default function ActivityComposer({
           <button
             onClick={() => handleChatButtonClick('sinalizar_ajuste')}
             disabled={webhookStatus?.key === 'sinalizar_ajuste' && webhookStatus.status === 'sending'}
-            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('sinalizar_ajuste', 'border-orange-200 text-orange-500 bg-white hover:bg-orange-50')}`}
+            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('sinalizar_ajuste', 'border-orange-500/30 text-orange-300 bg-orange-500/10 hover:bg-orange-500/20')}`}
           >
             <Flag size={14} weight="bold" />
             Sinalizar ajuste
@@ -171,7 +171,7 @@ export default function ActivityComposer({
           <button
             onClick={() => handleChatButtonClick('resumir_conversa')}
             disabled={webhookStatus?.key === 'resumir_conversa' && webhookStatus.status === 'sending'}
-            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('resumir_conversa', 'border-emerald-200 text-emerald-600 bg-white hover:bg-emerald-50')}`}
+            className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-full text-[11px] font-bold transition-colors ${getButtonStateClass('resumir_conversa', 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20')}`}
           >
             <ChatText size={14} weight="bold" />
             Resumir conversa
@@ -182,18 +182,18 @@ export default function ActivityComposer({
 
       {/* Reply Preview Bar */}
       {replyContext && (
-        <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm animate-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center bg-[#202c33] border border-[#2f3b44] rounded-xl px-3 py-2 shadow-sm animate-in slide-in-from-bottom-2 duration-200">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-1 h-8 rounded-full bg-emerald-500 flex-shrink-0" />
-            <ArrowBendUpLeft size={14} weight="bold" className="text-emerald-500 flex-shrink-0" />
+            <div className="w-1 h-8 rounded-full bg-[#53bdeb] flex-shrink-0" />
+            <ArrowBendUpLeft size={14} weight="bold" className="text-[#53bdeb] flex-shrink-0" />
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-emerald-600 truncate">{replyContext.sender}</p>
-              <p className="text-[12px] text-gray-500 truncate">{replyContext.text}</p>
+              <p className="text-[11px] font-semibold text-[#53bdeb] truncate">{replyContext.sender}</p>
+              <p className="text-[12px] text-[#8696a0] truncate">{replyContext.text}</p>
             </div>
           </div>
           <button
             onClick={onCancelReply}
-            className="ml-2 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+            className="ml-2 p-1 rounded-full hover:bg-[#2a3942] text-[#8696a0] hover:text-[#d1d7db] transition-colors flex-shrink-0"
           >
             <X size={16} weight="bold" />
           </button>
@@ -201,17 +201,17 @@ export default function ActivityComposer({
       )}
 
       {/* Input Area */}
-      <div className="relative flex items-end gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-300 transition-all">
+      <div className="relative flex items-end gap-2 bg-[#202c33] border border-[#2f3b44] rounded-xl px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-[#2a3942] focus-within:border-[#53bdeb]/50 transition-all">
         <div className="flex items-center gap-0 pb-0.5">
-          <button className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button className="text-[#8696a0] hover:text-[#aebac1] transition-colors">
             <Paperclip size={20} />
           </button>
           <button
             ref={emojiButtonRef}
             onClick={() => setShowEmojiPicker((prev) => !prev)}
             className={`transition-colors ${showEmojiPicker
-              ? 'text-blue-500'
-              : 'text-gray-400 hover:text-gray-600'
+              ? 'text-[#53bdeb]'
+              : 'text-[#8696a0] hover:text-[#aebac1]'
               }`}
           >
             <Smiley size={20} />
@@ -227,7 +227,7 @@ export default function ActivityComposer({
           >
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
-              theme={Theme.LIGHT}
+              theme={Theme.DARK}
               width={350}
               height={400}
               searchPlaceHolder="Buscar emoji..."
@@ -254,7 +254,7 @@ export default function ActivityComposer({
             }
           }}
           placeholder={replyContext ? 'Digite sua resposta...' : "Digite sua mensagem ou digite '/' para comandos..."}
-          className="flex-1 text-sm focus:outline-none text-gray-700 placeholder-gray-400 bg-transparent resize-none overflow-y-auto leading-[1.5] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex-1 text-sm focus:outline-none text-[#e9edef] placeholder-[#8696a0] bg-transparent resize-none overflow-y-auto leading-[1.5] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           rows={1}
           style={{ maxHeight: '160px' }}
         />
@@ -269,7 +269,7 @@ export default function ActivityComposer({
       </div>
 
       {/* Hint */}
-      <p className="text-center text-[10px] font-bold uppercase tracking-wider text-gray-400">
+      <p className="text-center text-[10px] font-bold uppercase tracking-wider text-[#667781]">
         Enter para enviar · Shift+Enter para nova linha{replyContext ? ' · Esc para cancelar reply' : ''}
       </p>
     </div>

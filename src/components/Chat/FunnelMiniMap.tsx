@@ -14,7 +14,7 @@ interface FunnelMiniMapProps {
   onPipelineChange?: (pipelineId: string) => void
 }
 
-const BLUE = '#115AF8'
+const BLUE = '#53bdeb'
 
 export default function FunnelMiniMap({
   stages,
@@ -48,8 +48,8 @@ export default function FunnelMiniMap({
       <div className="animate-pulse space-y-2">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-gray-200" />
-            <div className="h-3 bg-gray-200 rounded w-20" />
+            <div className="w-2 h-2 rounded-full bg-[#2a3942]" />
+            <div className="h-3 bg-[#2a3942] rounded w-20" />
           </div>
         ))}
       </div>
@@ -72,19 +72,19 @@ export default function FunnelMiniMap({
             className="flex items-center gap-1.5 cursor-pointer group"
             title="Trocar funil"
           >
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-blue-500 transition-colors">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#8696a0] group-hover:text-[#53bdeb] transition-colors">
               Funil de Vendas
             </p>
-            <span className="text-[10px] font-bold text-blue-500 group-hover:text-blue-700 transition-colors">▾</span>
+            <span className="text-[10px] font-bold text-[#53bdeb] group-hover:text-[#7cd0f5] transition-colors">▾</span>
           </button>
         ) : (
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#8696a0]">
             Funil de Vendas
           </p>
         )}
         {currentPipeline && (
           <p
-            className={`text-[11px] font-medium mt-0.5 ${hasPipelineSwitch ? 'text-blue-600 cursor-pointer hover:text-blue-700 transition-colors' : 'text-gray-500'}`}
+            className={`text-[11px] font-medium mt-0.5 ${hasPipelineSwitch ? 'text-[#53bdeb] cursor-pointer hover:text-[#7cd0f5] transition-colors' : 'text-[#8696a0]'}`}
             onClick={hasPipelineSwitch ? () => setShowPipelineMenu(!showPipelineMenu) : undefined}
           >
             {currentPipeline.name}
@@ -92,7 +92,7 @@ export default function FunnelMiniMap({
         )}
 
         {showPipelineMenu && hasPipelineSwitch && (
-          <div className="absolute z-50 left-0 top-full mt-1 w-48 bg-white border border-gray-100 rounded-lg shadow-xl py-1 ring-1 ring-black/5">
+          <div className="absolute z-50 left-0 top-full mt-1 w-48 bg-[#233138] border border-[#2f3b44] rounded-lg shadow-xl py-1 ring-1 ring-black/20">
             {pipelines.map(pipeline => (
               <button
                 key={pipeline.id}
@@ -102,13 +102,13 @@ export default function FunnelMiniMap({
                   }
                   setShowPipelineMenu(false)
                 }}
-                className={`w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors flex items-center gap-2 ${pipeline.id === currentPipelineId
-                  ? 'text-blue-700 font-semibold bg-blue-50/50'
-                  : 'text-gray-700'
+                className={`w-full text-left px-3 py-2 text-[13px] hover:bg-[#2a3942] transition-colors flex items-center gap-2 ${pipeline.id === currentPipelineId
+                  ? 'text-[#53bdeb] font-semibold bg-[#2a3942]'
+                  : 'text-[#d1d7db]'
                   }`}
               >
                 {pipeline.id === currentPipelineId && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#53bdeb] flex-shrink-0" />
                 )}
                 {pipeline.name}
               </button>
@@ -136,7 +136,7 @@ export default function FunnelMiniMap({
         }
         .funnel-clickable:hover {
           transform: translateX(3px);
-          background-color: #F6F9FF;
+          background-color: #182229;
         }
         .funnel-clickable:active {
           transform: translateX(1px) scale(0.98);
@@ -177,7 +177,7 @@ export default function FunnelMiniMap({
                       transform: 'translateX(-50%)',
                       width: 1.5,
                       height: 16, // Connects exactly to the top of the next dot container
-                      backgroundColor: isActive ? `${BLUE}40` : '#E5E7EB',
+                      backgroundColor: isActive ? `${BLUE}40` : '#2f3b44',
                       transition: 'background-color 0.3s ease',
                     }}
                   />
@@ -197,7 +197,7 @@ export default function FunnelMiniMap({
                     />
                     {/* Outlined current dot */}
                     <div
-                      className="absolute rounded-full bg-white"
+                      className="absolute rounded-full bg-[#111b21]"
                       style={{
                         width: DOT_SIZE,
                         height: DOT_SIZE,
@@ -218,11 +218,11 @@ export default function FunnelMiniMap({
                   />
                 ) : (
                   <div
-                    className="rounded-full bg-white"
+                    className="rounded-full bg-[#111b21]"
                     style={{
                       width: DOT_SIZE,
                       height: DOT_SIZE,
-                      border: '1.5px solid #D1D5DB',
+                      border: '1.5px solid #2f3b44',
                       transition: 'border-color 0.3s ease, background-color 0.3s ease',
                     }}
                   />
@@ -234,8 +234,8 @@ export default function FunnelMiniMap({
                 className={`text-[13px] leading-none select-none ${isCurrent
                   ? 'font-bold'
                   : isPast
-                    ? 'font-medium text-gray-700'
-                    : 'font-normal text-gray-400'
+                    ? 'font-medium text-[#d1d7db]'
+                    : 'font-normal text-[#667781]'
                   }`}
                 style={{
                   color: isCurrent ? BLUE : undefined,

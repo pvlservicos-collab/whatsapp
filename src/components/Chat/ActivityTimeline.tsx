@@ -65,7 +65,7 @@ function isOutgoing(senderType: SenderType): boolean {
 function DateDivider({ label }: { label: string }) {
   return (
     <div className="flex justify-center py-3">
-      <span className="text-[11px] font-semibold text-gray-500 bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-gray-100">
+      <span className="text-[11px] font-semibold text-[#8696a0] bg-[#182229]/90 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-white/5">
         {label}
       </span>
     </div>
@@ -121,7 +121,7 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
         onEnded={() => setIsPlaying(false)}
       />
 
-      <button onClick={togglePlay} className={`${isOutgoing ? 'text-white' : 'text-gray-500'} hover:opacity-80 flex-shrink-0 transition-opacity`}>
+      <button onClick={togglePlay} className={`${isOutgoing ? 'text-white' : 'text-[#aebac1]'} hover:opacity-80 flex-shrink-0 transition-opacity`}>
         {isPlaying ? <Pause size={28} weight="fill" /> : <Play size={28} weight="fill" />}
       </button>
 
@@ -140,10 +140,10 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
             }}
             className="absolute z-10 w-full h-full opacity-0 cursor-pointer"
           />
-          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isOutgoing ? 'rgba(255,255,255,0.3)' : '#e5e7eb' }}>
+          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isOutgoing ? 'rgba(255,255,255,0.3)' : '#3b4a54' }}>
             <div
               className="h-full"
-              style={{ width: `${progressPercent}%`, backgroundColor: isOutgoing ? '#fff' : '#21BCED' }}
+              style={{ width: `${progressPercent}%`, backgroundColor: isOutgoing ? '#fff' : '#53bdeb' }}
             />
           </div>
           <div
@@ -152,30 +152,30 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
               left: `calc(${progressPercent}% - 6px)`,
               width: '12px',
               height: '12px',
-              backgroundColor: isOutgoing ? '#fff' : '#21BCED',
+              backgroundColor: isOutgoing ? '#fff' : '#53bdeb',
               boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
             }}
           />
         </div>
         <div className="flex justify-start -mt-1.5">
-          <span className={`text-[11px] font-medium ${isOutgoing ? 'text-white/80' : 'text-gray-500'}`}>
+          <span className={`text-[11px] font-medium ${isOutgoing ? 'text-white/80' : 'text-[#8696a0]'}`}>
             {formatAudioTime(currentTime || duration)}
           </span>
         </div>
       </div>
 
       <div className="relative flex-shrink-0">
-        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center border border-black/5 bg-white">
+        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center border border-black/5 bg-[#2a3942]">
           {senderAvatar ? (
             <img src={senderAvatar} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-blue-100' : 'bg-gray-100'}`}>
-              <span className={`text-[10px] font-bold ${isOutgoing ? 'text-blue-500' : 'text-gray-400'}`}>👤</span>
+            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-blue-100' : 'bg-[#2a3942]'}`}>
+              <span className={`text-[10px] font-bold ${isOutgoing ? 'text-blue-500' : 'text-[#8696a0]'}`}>👤</span>
             </div>
           )}
         </div>
-        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? '#21BCED' : '#fff' }}>
-          <Microphone size={12} weight="fill" className={isOutgoing ? "text-white" : "text-[#21BCED]"} />
+        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? '#21BCED' : '#2a3942' }}>
+          <Microphone size={12} weight="fill" className={isOutgoing ? "text-white" : "text-[#53bdeb]"} />
         </div>
       </div>
     </div>
@@ -248,16 +248,16 @@ function MediaRenderer({ metadata, isOutgoing, onImageClick, senderAvatar }: { m
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`mt-1 mb-1 flex items-center gap-3 p-3 rounded-lg border ${isOutgoing ? 'bg-black/10 border-white/20 hover:bg-black/20 text-white' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-800'
+        className={`mt-1 mb-1 flex items-center gap-3 p-3 rounded-lg border ${isOutgoing ? 'bg-black/10 border-white/20 hover:bg-black/20 text-white' : 'bg-[#2a3942] border-[#3b4a54] hover:bg-[#33444f] text-[#e9edef]'
           } transition-colors max-w-[240px]`}
         title="Baixar Documento"
       >
-        <div className={`p-2 rounded ${isOutgoing ? 'bg-white/20' : 'bg-white shadow-sm'}`}>
+        <div className={`p-2 rounded ${isOutgoing ? 'bg-white/20' : 'bg-[#1f2c33] shadow-sm'}`}>
           <span className="text-lg">📄</span>
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{metadata.media_filename || 'Documento'}</p>
-          <p className={`text-[10px] ${isOutgoing ? 'text-white/70' : 'text-gray-500'} uppercase mt-0.5 tracking-wider`}>
+          <p className={`text-[10px] ${isOutgoing ? 'text-white/70' : 'text-[#8696a0]'} uppercase mt-0.5 tracking-wider`}>
             {metadata.media_mimetype?.split('/')[1] || 'FILE'}
           </p>
         </div>
@@ -281,11 +281,11 @@ function QuotedMessageBar({ metadata, isOutgoing }: { metadata: any; isOutgoing:
 
   if (!quotedText && !quotedMediaType) return null;
 
-  // Color for the left bar: green for lead replies, blue for outgoing
-  const barColor = isOutgoing ? 'rgba(255,255,255,0.5)' : '#25D366';
-  const bgColor = isOutgoing ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.04)';
-  const textColor = isOutgoing ? 'text-white/90' : 'text-gray-700';
-  const senderColor = isOutgoing ? 'text-white font-semibold' : 'text-emerald-600 font-semibold';
+  // Color for the left bar: blue accent for lead replies, white-ish for outgoing
+  const barColor = isOutgoing ? 'rgba(255,255,255,0.5)' : '#53bdeb';
+  const bgColor = isOutgoing ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.06)';
+  const textColor = isOutgoing ? 'text-white/90' : 'text-[#d1d7db]';
+  const senderColor = isOutgoing ? 'text-white font-semibold' : 'text-[#53bdeb] font-semibold';
 
   return (
     <div
@@ -397,10 +397,10 @@ function MessageBubble({
           {onReply && (
             <button
               onClick={() => onReply(activity)}
-              className="absolute -left-9 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-opacity hover:bg-gray-50 z-20"
+              className="absolute -left-9 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#233138] border border-[#2f3b44] shadow-sm flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-opacity hover:bg-[#2a3942] z-20"
               title="Responder"
             >
-              <ArrowBendUpLeft size={14} weight="bold" className="text-gray-500" />
+              <ArrowBendUpLeft size={14} weight="bold" className="text-[#aebac1]" />
             </button>
           )}
           <div
@@ -432,13 +432,13 @@ function MessageBubble({
           {/* Reaction Pill Outgoing */}
           {reactions && reactions.length > 0 && (
             <div
-              className="absolute -bottom-2 right-2 bg-white border border-gray-200 shadow-sm rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10"
+              className="absolute -bottom-2 right-2 bg-[#233138] border border-[#2f3b44] shadow-sm rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10"
               title={reactions.map(r => `${r.metadata?.sender_name || 'Desconhecido'}: ${r.content}`).join('\n')}
             >
               {Array.from(new Set(reactions.map(r => r.content))).map((emoji, idx) => (
                 <span key={idx} className="text-[12px] leading-none">{emoji}</span>
               ))}
-              {reactions.length > 1 && <span className="text-gray-500 font-medium text-[10px] ml-0.5">{reactions.length}</span>}
+              {reactions.length > 1 && <span className="text-[#8696a0] font-medium text-[10px] ml-0.5">{reactions.length}</span>}
             </div>
           )}
         </div>
@@ -454,11 +454,11 @@ function MessageBubble({
     <div className="flex items-start gap-2.5 group/msg">
       <div className="w-7 flex-shrink-0 mt-0.5">
         {showHeader && (
-          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center shadow-inner overflow-hidden border border-gray-100">
+          <div className="w-7 h-7 rounded-full bg-[#2a3942] flex items-center justify-center shadow-inner overflow-hidden border border-[#1f2c33]">
             {lead.avatar_url ? (
               <img src={lead.avatar_url} alt={lead.title} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-[10px] font-bold text-blue-600">{initials}</span>
+              <span className="text-[10px] font-bold text-[#53bdeb]">{initials}</span>
             )}
           </div>
         )}
@@ -466,7 +466,7 @@ function MessageBubble({
       <div className="max-w-[65%] w-fit">
         {showHeader && (
           <div className="flex items-center gap-1.5 mb-1 ml-1">
-            <span className="text-xs font-semibold text-gray-700">{senderName}</span>
+            <span className="text-xs font-semibold text-[#8696a0]">{senderName}</span>
           </div>
         )}
         <div className="relative">
@@ -474,24 +474,24 @@ function MessageBubble({
           {onReply && (
             <button
               onClick={() => onReply(activity)}
-              className="absolute -right-9 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-opacity hover:bg-gray-50 z-20"
+              className="absolute -right-9 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#233138] border border-[#2f3b44] shadow-sm flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-opacity hover:bg-[#2a3942] z-20"
               title="Responder"
             >
-              <ArrowBendUpLeft size={14} weight="bold" className="text-gray-500" />
+              <ArrowBendUpLeft size={14} weight="bold" className="text-[#aebac1]" />
             </button>
           )}
-          <div className={`relative bg-white rounded-2xl px-3 pt-2 pb-1.5 border border-gray-100 shadow-sm min-w-[80px] ${showHeader ? 'rounded-tl-[2px]' : ''}`}>
+          <div className={`relative bg-[#202c33] rounded-2xl px-3 pt-2 pb-1.5 border border-white/5 shadow-sm min-w-[80px] ${showHeader ? 'rounded-tl-[2px]' : ''}`}>
             <QuotedMessageBar metadata={activity.metadata} isOutgoing={false} />
             {activity.metadata?.media_url && (
               <MediaRenderer metadata={activity.metadata} isOutgoing={false} onImageClick={onImageClick} senderAvatar={lead.avatar_url} />
             )}
             {(!activity.metadata?.media_url || !['📷 Imagem', '🎥 Vídeo', '🎵 Áudio', '📄 Documento', '✨ Figurinha'].includes(activity.content)) && (
-              <p className={`text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words ${activity.metadata?.media_url ? 'mt-1' : ''}`}>
+              <p className={`text-sm text-[#e9edef] leading-relaxed whitespace-pre-wrap break-words ${activity.metadata?.media_url ? 'mt-1' : ''}`}>
                 {activity.content}
                 <span className="inline-block w-[2.5rem]" />
               </p>
             )}
-            <span className="absolute bottom-1 right-2.5 text-[10px] text-gray-400 whitespace-nowrap">
+            <span className="absolute bottom-1 right-2.5 text-[10px] text-[#8696a0] whitespace-nowrap">
               {formatTime(activity.created_at)}
             </span>
           </div>
@@ -499,13 +499,13 @@ function MessageBubble({
           {/* Reaction Pill Inbound */}
           {reactions && reactions.length > 0 && (
             <div
-              className="absolute -bottom-2 right-2 bg-white border border-gray-200 shadow-sm rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10"
+              className="absolute -bottom-2 right-2 bg-[#233138] border border-[#2f3b44] shadow-sm rounded-full px-1.5 py-0.5 flex items-center gap-0.5 z-10"
               title={reactions.map(r => `${r.metadata?.sender_name || 'Desconhecido'}: ${r.content}`).join('\n')}
             >
               {Array.from(new Set(reactions.map(r => r.content))).map((emoji, idx) => (
                 <span key={idx} className="text-[12px] leading-none">{emoji}</span>
               ))}
-              {reactions.length > 1 && <span className="text-gray-500 font-medium text-[10px] ml-0.5">{reactions.length}</span>}
+              {reactions.length > 1 && <span className="text-[#8696a0] font-medium text-[10px] ml-0.5">{reactions.length}</span>}
             </div>
           )}
         </div>
@@ -539,7 +539,7 @@ export default function ActivityTimeline({
   if (activities.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-transparent z-10 relative">
-        <div className="bg-white border border-gray-200 rounded-full px-6 py-2.5 text-[13px] text-gray-500 shadow-sm">
+        <div className="bg-[#182229] border border-white/5 rounded-full px-6 py-2.5 text-[13px] text-[#8696a0] shadow-sm">
           Nenhuma mensagem ainda. Inicie a conversa!
         </div>
       </div>
@@ -588,10 +588,10 @@ export default function ActivityTimeline({
       }
       elements.push(
         <div key={activity.id} className="mt-4 flex justify-center">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 max-w-sm w-full shadow-sm">
-            <p className="text-sm font-semibold text-yellow-900">📝 Nota</p>
-            <p className="text-sm text-yellow-800 mt-1 whitespace-pre-wrap">{activity.content}</p>
-            <p className="text-[10px] text-yellow-600/80 mt-2 text-right uppercase font-semibold tracking-wider">
+          <div className="bg-[#3a2e12] border border-[#5a4720] rounded-2xl p-3 max-w-sm w-full shadow-sm">
+            <p className="text-sm font-semibold text-amber-200">📝 Nota</p>
+            <p className="text-sm text-amber-100/90 mt-1 whitespace-pre-wrap">{activity.content}</p>
+            <p className="text-[10px] text-amber-400/80 mt-2 text-right uppercase font-semibold tracking-wider">
               {activity.actor?.profiles?.full_name || 'Desconhecido'} • {formatTime(activity.created_at)}
             </p>
           </div>
@@ -616,9 +616,9 @@ export default function ActivityTimeline({
         : ''
       elements.push(
         <div key={activity.id} className="mt-4 flex justify-center mb-1">
-          <div className="bg-white border border-gray-200 shadow-sm rounded-full py-2 px-5 inline-block">
-            <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest">
-              📞 Ligação{durationStr ? ` • ${durationStr}` : ''} • <span className="text-gray-400 font-normal">{formatTime(activity.created_at)}</span>
+          <div className="bg-[#202c33] border border-[#2f3b44] shadow-sm rounded-full py-2 px-5 inline-block">
+            <p className="text-xs font-semibold text-[#d1d7db] uppercase tracking-widest">
+              📞 Ligação{durationStr ? ` • ${durationStr}` : ''} • <span className="text-[#8696a0] font-normal">{formatTime(activity.created_at)}</span>
             </p>
           </div>
         </div>
@@ -638,10 +638,10 @@ export default function ActivityTimeline({
       }
       elements.push(
         <div key={activity.id} className="mt-4 flex justify-center">
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 max-w-md w-full shadow-sm">
-            <p className="text-sm font-semibold text-blue-900">📧 Email</p>
-            <p className="text-sm text-blue-800 mt-2 whitespace-pre-wrap bg-white/50 p-3 rounded-xl border border-blue-100">{activity.content}</p>
-            <p className="text-[10px] text-blue-500 mt-2 text-right uppercase font-semibold tracking-wide">
+          <div className="bg-[#0f2733] border border-[#1e4356] rounded-2xl p-4 max-w-md w-full shadow-sm">
+            <p className="text-sm font-semibold text-blue-200">📧 Email</p>
+            <p className="text-sm text-blue-100 mt-2 whitespace-pre-wrap bg-black/15 p-3 rounded-xl border border-blue-900/40">{activity.content}</p>
+            <p className="text-[10px] text-blue-300 mt-2 text-right uppercase font-semibold tracking-wide">
               {formatTime(activity.created_at)}
             </p>
           </div>

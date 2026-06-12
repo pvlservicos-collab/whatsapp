@@ -64,7 +64,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     <div
       className="flex flex-col h-full relative overflow-x-hidden"
       style={{
-        backgroundColor: '#F6F9FF',
+        backgroundColor: '#0b141a',
         backgroundImage: `url('/chat-bg.svg')`,
         backgroundRepeat: 'repeat',
         backgroundSize: 'auto',
@@ -80,11 +80,11 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
 
       {/* Send Error Banner */}
       {sendError && (
-        <div className="mx-4 mb-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
-          <span className="text-sm text-red-700">{sendError}</span>
+        <div className="mx-4 mb-2 px-4 py-2.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-between">
+          <span className="text-sm text-red-300">{sendError}</span>
           <button
             onClick={() => setSendError(null)}
-            className="text-red-400 hover:text-red-600 text-xs font-bold ml-3"
+            className="text-red-400/70 hover:text-red-300 text-xs font-bold ml-3"
           >
             ✕
           </button>

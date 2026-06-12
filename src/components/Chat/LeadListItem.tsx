@@ -30,8 +30,8 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
 
     const unreadGradient = lead.is_unread
         ? (lead.last_message_sender_type === 'lead'
-            ? 'linear-gradient(to right, rgba(34,197,94,0.18), transparent 60%)'
-            : 'linear-gradient(to right, rgba(59,130,246,0.18), transparent 60%)')
+            ? 'linear-gradient(to right, rgba(34,197,94,0.22), transparent 60%)'
+            : 'linear-gradient(to right, rgba(59,130,246,0.22), transparent 60%)')
         : (lead.last_message_sender_type === 'human'
             ? 'linear-gradient(to right, rgba(45,212,191,0.18), transparent 60%)'
             : undefined)
@@ -41,9 +41,9 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             <button
                 onClick={() => onClick(lead)}
                 onContextMenu={(e) => onContextMenu(e, lead)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-100 transition-colors ${isSelected
-                    ? 'bg-blue-50/50 border-l-[3px] border-l-cyan-400'
-                    : 'hover:bg-gray-50 border-l-[3px] border-l-transparent'
+                className={`w-full text-left px-4 py-3 border-b border-[#1f2c33] transition-colors ${isSelected
+                    ? 'bg-[#2a3942] border-l-[3px] border-l-[#53bdeb]'
+                    : 'hover:bg-[#182229] border-l-[3px] border-l-transparent'
                     }`}
                 style={unreadGradient ? { background: unreadGradient } : undefined}
             >
@@ -51,15 +51,15 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
                         {lead.is_pinned && (
-                            <div className="absolute -top-1 -left-1 z-10 bg-white rounded-full p-[1px]">
-                                <PushPin size={12} weight="fill" className="text-blue-500 -rotate-45" />
+                            <div className="absolute -top-1 -left-1 z-10 bg-[#111b21] rounded-full p-[1px]">
+                                <PushPin size={12} weight="fill" className="text-[#53bdeb] -rotate-45" />
                             </div>
                         )}
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border border-gray-100">
+                        <div className="w-10 h-10 rounded-full bg-[#2a3942] flex items-center justify-center overflow-hidden border border-[#1f2c33]">
                             {lead.avatar_url ? (
                                 <img src={lead.avatar_url} alt={lead.title} className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-sm font-bold text-blue-600">{getInitials(lead.title)}</span>
+                                <span className="text-sm font-bold text-[#53bdeb]">{getInitials(lead.title)}</span>
                             )}
                         </div>
                         <IntegrationBadge lead={lead} size="sm" />
@@ -68,14 +68,14 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                     {/* Text Content */}
                     <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-start justify-between mb-[2px] w-full">
-                            <h3 className={`text-[15px] leading-tight truncate ${lead.is_unread ? 'font-bold text-gray-900' : 'font-medium text-[#0f3a63]'}`}>
+                            <h3 className={`text-[15px] leading-tight truncate ${lead.is_unread ? 'font-bold text-[#e9edef]' : 'font-medium text-[#d1d7db]'}`}>
                                 {formatPhone(lead.title)}
                             </h3>
                             <div className="flex items-center gap-2 pl-2">
                                 {lead.is_unread && (
-                                    <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                                    <div className="w-2 h-2 rounded-full bg-[#53bdeb] flex-shrink-0" />
                                 )}
-                                <span className={`text-[11px] flex-shrink-0 ${lead.is_unread ? 'text-blue-600 font-bold' : 'text-gray-400 font-medium'}`}>
+                                <span className={`text-[11px] flex-shrink-0 ${lead.is_unread ? 'text-[#53bdeb] font-bold' : 'text-[#667781] font-medium'}`}>
                                     {timeStr}
                                 </span>
                             </div>
@@ -83,14 +83,14 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
 
                         <div className="flex items-center gap-1.5 overflow-hidden w-full">
                             {SenderIcon && <SenderIcon weight="fill" className={`flex-shrink-0 ${iconColor} w-3.5 h-3.5`} />}
-                            <p className={`text-[13px] truncate ${lead.is_unread ? 'text-gray-900 font-medium' : (lastMsg ? 'text-gray-500' : 'text-gray-400 italic')}`}>
+                            <p className={`text-[13px] truncate ${lead.is_unread ? 'text-[#d1d7db] font-medium' : (lastMsg ? 'text-[#8696a0]' : 'text-[#667781] italic')}`}>
                                 {lastMsg}
                             </p>
                         </div>
 
                         {hit?.matchType === 'message' && hit.snippet && (
-                            <div className="text-xs text-gray-500 italic mt-0.5 line-clamp-1">
-                                <span className="text-blue-600 mr-1">↩</span>
+                            <div className="text-xs text-[#8696a0] italic mt-0.5 line-clamp-1">
+                                <span className="text-[#53bdeb] mr-1">↩</span>
                                 <span dangerouslySetInnerHTML={{ __html: renderSnippet(hit.snippet, query ?? '') }} />
                             </div>
                         )}
