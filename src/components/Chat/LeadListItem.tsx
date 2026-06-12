@@ -126,6 +126,8 @@ export default memo(LeadListItem, (prevProps, nextProps) => {
     return (
         prevProps.lead.id === nextProps.lead.id &&
         prevProps.lead.updated_at === nextProps.lead.updated_at &&
+        prevProps.lead.is_unread === nextProps.lead.is_unread &&
+        prevProps.lead.last_message_sender_type === nextProps.lead.last_message_sender_type &&
         prevProps.isSelected === nextProps.isSelected &&
         prevProps.hideReplyHighlight === nextProps.hideReplyHighlight &&
         prevProps.timeStr === nextProps.timeStr &&
