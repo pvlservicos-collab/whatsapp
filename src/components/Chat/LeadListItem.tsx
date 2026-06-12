@@ -30,10 +30,10 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
 
     const unreadGradient = lead.is_unread
         ? (lead.last_message_sender_type === 'lead'
-            ? 'linear-gradient(to right, rgba(34,197,94,0.22), transparent 60%)'
-            : 'linear-gradient(to right, rgba(59,130,246,0.22), transparent 60%)')
+            ? 'linear-gradient(to right, rgba(34,197,94,0.5), transparent 80%)'
+            : 'linear-gradient(to right, rgba(59,130,246,0.5), transparent 80%)')
         : (lead.last_message_sender_type === 'human'
-            ? 'linear-gradient(to right, rgba(45,212,191,0.18), transparent 60%)'
+            ? 'linear-gradient(to right, rgba(45,212,191,0.35), transparent 80%)'
             : undefined)
 
     return (
