@@ -6,7 +6,7 @@ import {
   leads, leadActivities, pipelineStages, organizationMembers, profiles,
 } from '@/lib/schema'
 import { eq, and, isNull, desc, asc, ilike, sql } from 'drizzle-orm'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppMedia } from '@/lib/whatsapp'
 
 /**
  * GET /api/leads/[id]/messages
@@ -157,7 +157,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (direction === 'outbound' && body.type === 'whatsapp' && !body.skip_send) {
       const phone = lead?.phone || decodedPhone
       try {
-        const result = await sendWhatsAppMessage(auth.organizationId, phone, body.content)
+        const result = body.media_url
+          ? await sendWhatsAppMedia(auth.organizationId, phone, body.media_type, body.media_url, body.content, body.media_filename)
+          : await sendWhatsAppMessage(auth.organizationId, phone, body.content)
         metadata.whatsapp_message_id = result?.messages?.[0]?.id
         metadata.send_status = 'sent'
       } catch (err: any) {

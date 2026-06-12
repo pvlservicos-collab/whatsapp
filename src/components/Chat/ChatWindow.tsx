@@ -21,7 +21,7 @@ export interface ReplyContext {
 }
 
 export default function ChatWindow({ lead, organizationId, onMessageSent }: ChatWindowProps) {
-  const { activities, loading, sendHumanMessage } = useLeadActivities(organizationId, lead.id)
+  const { activities, loading, sendHumanMessage, sendMediaMessage } = useLeadActivities(organizationId, lead.id)
   const { currentOrganization } = useAuth()
   const { settings: chatButtonSettings, fireWebhook } = useChatButtonSettings()
   const [replyContext, setReplyContext] = useState<ReplyContext | null>(null)
@@ -49,6 +49,35 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     } catch (error) {
       console.error('Failed to send activity:', error)
       setSendError('Falha ao enviar mensagem. Verifique sua conexão e tente novamente.')
+    }
+  }
+
+  const handleSendMedia = async (file: File) => {
+    setSendError(null)
+
+    let mediaType: 'image' | 'video' | 'audio' | 'document' = 'document'
+    if (file.type.startsWith('image/')) mediaType = 'image'
+    else if (file.type.startsWith('video/')) mediaType = 'video'
+    else if (file.type.startsWith('audio/')) mediaType = 'audio'
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'chat-media')
+      formData.append('identifier', lead.id)
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Falha ao enviar arquivo')
+      }
+      const { url } = await res.json()
+
+      if (onMessageSent) onMessageSent(`[${mediaType}]`)
+      await sendMediaMessage(url, mediaType, '', file.name, file.type)
+    } catch (error) {
+      console.error('Failed to send media:', error)
+      setSendError('Falha ao enviar mídia. Verifique o arquivo e tente novamente.')
     }
   }
 
@@ -94,6 +123,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
       {/* Composer Bottom */}
       <ActivityComposer
         onSend={handleSendActivity}
+        onSendMedia={handleSendMedia}
         replyContext={replyContext}
         onCancelReply={() => setReplyContext(null)}
         chatButtonSettings={chatButtonSettings}

@@ -19,7 +19,7 @@ import { put, del } from '@vercel/blob'
  */
 export async function uploadFile(
   file: File | Blob,
-  folder: 'avatars' | 'org-logos',
+  folder: 'avatars' | 'org-logos' | 'chat-media',
   identifier: string
 ): Promise<string> {
   const ext = file instanceof File ? file.name.split('.').pop() || 'jpg' : 'jpg'

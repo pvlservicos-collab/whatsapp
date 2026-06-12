@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { integrations, integrationSecrets } from '@/lib/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 
-export async function sendWhatsAppMessage(organizationId: string, phone: string, content: string) {
+async function getWhatsAppCredentials(organizationId: string) {
   const [integration] = await db.select({ id: integrations.id, config: integrations.config })
     .from(integrations)
     .where(and(
@@ -26,13 +26,21 @@ export async function sendWhatsAppMessage(organizationId: string, phone: string,
     throw { status: 400, message: 'Integração com WhatsApp incompleta (faltando phone_number_id ou token).' }
   }
 
-  const apiVersion = config.graph_api_version || 'v21.0'
+  return {
+    apiVersion: config.graph_api_version || 'v21.0',
+    phoneNumberId: config.phone_number_id,
+    token: secret.system_token,
+  }
+}
+
+export async function sendWhatsAppMessage(organizationId: string, phone: string, content: string) {
+  const { apiVersion, phoneNumberId, token } = await getWhatsAppCredentials(organizationId)
   const to = phone.replace(/\D/g, '')
 
-  const res = await fetch(`https://graph.facebook.com/${apiVersion}/${config.phone_number_id}/messages`, {
+  const res = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${secret.system_token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -47,6 +55,51 @@ export async function sendWhatsAppMessage(organizationId: string, phone: string,
 
   if (!res.ok) {
     const errMsg = data?.error?.message || `Falha ao enviar mensagem (HTTP ${res.status})`
+    throw { status: 502, message: errMsg, details: data }
+  }
+
+  return data
+}
+
+/**
+ * Envia mídia (imagem, vídeo, áudio ou documento) via WhatsApp Cloud API a partir de uma URL pública.
+ */
+export async function sendWhatsAppMedia(
+  organizationId: string,
+  phone: string,
+  mediaType: 'image' | 'video' | 'audio' | 'document' | 'sticker',
+  mediaUrl: string,
+  caption?: string,
+  filename?: string
+) {
+  const { apiVersion, phoneNumberId, token } = await getWhatsAppCredentials(organizationId)
+  const to = phone.replace(/\D/g, '')
+
+  const mediaPayload: Record<string, any> = { link: mediaUrl }
+  if (caption && mediaType !== 'audio' && mediaType !== 'sticker') mediaPayload.caption = caption
+  if (filename && mediaType === 'document') mediaPayload.filename = filename
+
+  // WhatsApp Cloud API não tem tipo 'sticker' para mídia externa via link; envia como imagem
+  const apiType = mediaType === 'sticker' ? 'image' : mediaType
+
+  const res = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: apiType,
+      [apiType]: mediaPayload,
+    }),
+  })
+
+  const data = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    const errMsg = data?.error?.message || `Falha ao enviar mídia (HTTP ${res.status})`
     throw { status: 502, message: errMsg, details: data }
   }
 

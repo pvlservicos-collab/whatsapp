@@ -18,6 +18,7 @@ import { ChatButtonSettings, ChatButtonKey } from '@/hooks/useChatButtonSettings
 
 interface ActivityComposerProps {
   onSend: (content: string) => Promise<void>
+  onSendMedia?: (file: File) => Promise<void>
   replyContext?: ReplyContext | null
   onCancelReply?: () => void
   chatButtonSettings?: ChatButtonSettings
@@ -26,6 +27,7 @@ interface ActivityComposerProps {
 
 export default function ActivityComposer({
   onSend,
+  onSendMedia,
   replyContext,
   onCancelReply,
   chatButtonSettings,
@@ -33,12 +35,14 @@ export default function ActivityComposer({
 }: ActivityComposerProps) {
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [webhookStatus, setWebhookStatus] = useState<{
     key: ChatButtonKey
     status: 'sending' | 'success' | 'error'
   } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -101,6 +105,19 @@ export default function ActivityComposer({
       setContent(msgToSend) // Revert on error
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !onSendMedia) return
+
+    try {
+      setUploadingMedia(true)
+      await onSendMedia(file)
+    } finally {
+      setUploadingMedia(false)
     }
   }
 
@@ -203,8 +220,24 @@ export default function ActivityComposer({
       {/* Input Area */}
       <div className="relative flex items-end gap-2 bg-[#202c33] border border-[#2f3b44] rounded-xl px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-[#2a3942] focus-within:border-[#53bdeb]/50 transition-all">
         <div className="flex items-center gap-0 pb-0.5">
-          <button className="text-[#8696a0] hover:text-[#aebac1] transition-colors">
-            <Paperclip size={20} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingMedia || !onSendMedia}
+            className="text-[#8696a0] hover:text-[#aebac1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Enviar mídia"
+          >
+            {uploadingMedia ? (
+              <span className="animate-spin text-sm inline-block">⏳</span>
+            ) : (
+              <Paperclip size={20} />
+            )}
           </button>
           <button
             ref={emojiButtonRef}

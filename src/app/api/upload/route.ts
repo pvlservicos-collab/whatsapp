@@ -19,24 +19,31 @@ export async function POST(req: NextRequest) {
     const identifier = formData.get('identifier') as string | null
 
     if (!file) return apiError(400, 'Arquivo não enviado.')
-    if (!folder || !['avatars', 'org-logos'].includes(folder)) {
-      return apiError(400, 'Pasta inválida. Use: avatars ou org-logos')
+    if (!folder || !['avatars', 'org-logos', 'chat-media'].includes(folder)) {
+      return apiError(400, 'Pasta inválida. Use: avatars, org-logos ou chat-media')
     }
 
-    // Validar tamanho (5MB máx)
-    if (file.size > 5 * 1024 * 1024) {
-      return apiError(400, 'Arquivo muito grande. Máximo: 5MB.')
-    }
+    if (folder === 'chat-media') {
+      // Validar tamanho (16MB máx — limite do WhatsApp para mídia)
+      if (file.size > 16 * 1024 * 1024) {
+        return apiError(400, 'Arquivo muito grande. Máximo: 16MB.')
+      }
+    } else {
+      // Validar tamanho (5MB máx)
+      if (file.size > 5 * 1024 * 1024) {
+        return apiError(400, 'Arquivo muito grande. Máximo: 5MB.')
+      }
 
-    // Validar tipo
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
-      return apiError(400, 'Tipo de arquivo inválido. Use: JPEG, PNG, WebP ou GIF.')
+      // Validar tipo
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+      if (!allowedTypes.includes(file.type)) {
+        return apiError(400, 'Tipo de arquivo inválido. Use: JPEG, PNG, WebP ou GIF.')
+      }
     }
 
     const url = await uploadFile(
       file,
-      folder as 'avatars' | 'org-logos',
+      folder as 'avatars' | 'org-logos' | 'chat-media',
       identifier || session.user.id!
     )
 

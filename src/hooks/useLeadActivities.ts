@@ -110,5 +110,74 @@ export function useLeadActivities(organizationId: string, leadId: string) {
     }
   }
 
-  return { activities, loading, error, sendHumanMessage, refresh: fetchActivities }
+  const MEDIA_LABELS: Record<string, string> = {
+    image: '📷 Imagem',
+    video: '🎥 Vídeo',
+    audio: '🎵 Áudio',
+    document: '📄 Documento',
+    sticker: '✨ Figurinha',
+  }
+
+  const sendMediaMessage = async (
+    mediaUrl: string,
+    mediaType: 'image' | 'video' | 'audio' | 'document' | 'sticker',
+    caption: string,
+    mediaFilename?: string,
+    mediaMimetype?: string
+  ) => {
+    const content = caption.trim() || MEDIA_LABELS[mediaType] || '📎 Mídia'
+    const tempId = `temp-${Date.now()}`
+    const optimisticMsg: LeadActivityWithActor = {
+      id: tempId,
+      organization_id: organizationId,
+      lead_id: leadId,
+      type: 'whatsapp',
+      content,
+      actor_member_id: null,
+      metadata: {
+        direction: 'outbound',
+        source: 'human',
+        status: 'sent',
+        is_optimistic: true,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        media_filename: mediaFilename,
+        media_mimetype: mediaMimetype,
+      },
+      created_at: new Date().toISOString(),
+      actor: undefined,
+    }
+    setActivities((prev) => [...prev, optimisticMsg])
+
+    try {
+      const body: any = {
+        content,
+        type: 'whatsapp',
+        source: 'human',
+        direction: 'outbound',
+        media_url: mediaUrl,
+        media_type: mediaType,
+        media_filename: mediaFilename,
+        media_mimetype: mediaMimetype,
+      }
+
+      const res = await fetch(`/api/leads/${leadId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Falha ao enviar mídia')
+      }
+
+      setActivities((prev) => prev.filter((a) => a.id !== tempId))
+    } catch (err) {
+      setActivities((prev) => prev.filter((a) => a.id !== tempId))
+      throw err
+    }
+  }
+
+  return { activities, loading, error, sendHumanMessage, sendMediaMessage, refresh: fetchActivities }
 }
