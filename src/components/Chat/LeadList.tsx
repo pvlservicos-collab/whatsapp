@@ -67,6 +67,25 @@ export default function LeadList({
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false, x: 0, y: 0, lead: null
   })
+  const [seenReplies, setSeenReplies] = useState<Record<string, string>>({})
+
+  // Load "seen" map from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('lead_seen_replies')
+      if (stored) setSeenReplies(JSON.parse(stored))
+    } catch {}
+  }, [])
+
+  const markReplySeen = useCallback((leadId: string, lastActivityAt?: string) => {
+    if (!lastActivityAt) return
+    setSeenReplies(prev => {
+      if (prev[leadId] === lastActivityAt) return prev
+      const next = { ...prev, [leadId]: lastActivityAt }
+      try { localStorage.setItem('lead_seen_replies', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [])
   const menuRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -122,8 +141,10 @@ export default function LeadList({
   useEffect(() => {
     if (selectedLeadId && document.hasFocus()) {
       markLeadAsRead(selectedLeadId)
+      const lead = leads.find(l => l.id === selectedLeadId)
+      if (lead) markReplySeen(lead.id, lead.last_activity_at)
     }
-  }, [selectedLeadId, markLeadAsRead])
+  }, [selectedLeadId, markLeadAsRead, markReplySeen, leads])
 
   // Mark as read when the window gains focus (if reading currently)
   useEffect(() => {
@@ -177,6 +198,7 @@ export default function LeadList({
   const handleLeadClick = async (lead: LeadWithOwner) => {
     onSelectLead(lead)
     markLeadAsRead(lead.id)
+    markReplySeen(lead.id, lead.last_activity_at)
   }
 
   const filteredHits: SearchHit[] = [...searchResults].sort((a, b) => {
@@ -220,6 +242,7 @@ export default function LeadList({
               const lead = hit.lead
               const isSelected = selectedLeadId === lead.id
               const timeStr = formatRelativeTime(lead.last_activity_at || lead.created_at)
+              const hideReplyHighlight = !!lead.last_activity_at && seenReplies[lead.id] === lead.last_activity_at
 
               return (
                 <LeadListItem
@@ -231,6 +254,7 @@ export default function LeadList({
                   onContextMenu={handleContextMenu}
                   hit={hit}
                   query={search}
+                  hideReplyHighlight={hideReplyHighlight}
                 />
               )
             })}

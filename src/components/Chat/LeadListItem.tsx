@@ -14,9 +14,10 @@ interface LeadListItemProps {
     timeStr: string
     hit?: SearchHit
     query?: string
+    hideReplyHighlight?: boolean
 }
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, hideReplyHighlight }: LeadListItemProps) => {
     const defaultMsg = lead.last_activity_type ? 'Ver conversa' : 'Sem mensagens'
     const lastMsg = lead.last_message_content || defaultMsg
 
@@ -32,7 +33,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
         ? (lead.last_message_sender_type === 'lead'
             ? 'linear-gradient(to right, rgba(34,197,94,0.5), transparent 80%)'
             : 'linear-gradient(to right, rgba(59,130,246,0.5), transparent 80%)')
-        : (lead.last_message_sender_type === 'human'
+        : (lead.last_message_sender_type === 'human' && !hideReplyHighlight
             ? 'linear-gradient(to right, rgba(45,212,191,0.35), transparent 80%)'
             : undefined)
 
@@ -126,6 +127,7 @@ export default memo(LeadListItem, (prevProps, nextProps) => {
         prevProps.lead.id === nextProps.lead.id &&
         prevProps.lead.updated_at === nextProps.lead.updated_at &&
         prevProps.isSelected === nextProps.isSelected &&
+        prevProps.hideReplyHighlight === nextProps.hideReplyHighlight &&
         prevProps.timeStr === nextProps.timeStr &&
         prevProps.query === nextProps.query &&
         prevProps.hit?.matchType === nextProps.hit?.matchType &&
