@@ -60,13 +60,13 @@ function NodeShell({ selected, color, icon, title, children, hasTarget = true, h
       className={`rounded-xl border-2 shadow-sm w-56 overflow-hidden transition-shadow ${selected ? 'ring-2 ring-blue-400' : ''}`}
       style={{ borderColor: color }}
     >
-      {hasTarget && <Handle type="target" position={Position.Top} style={{ background: color, width: 10, height: 10 }} />}
+      {hasTarget && <Handle type="target" position={Position.Left} style={{ background: color, width: 10, height: 10 }} />}
       <div className="px-3 py-2 flex items-center gap-2 font-semibold text-sm text-gray-800" style={{ background: `${color}22` }}>
         {icon}
         {title}
       </div>
       {children && <div className="px-3 py-2 text-xs text-gray-600 bg-white">{children}</div>}
-      {hasSource && <Handle type="source" position={Position.Bottom} style={{ background: color, width: 10, height: 10 }} />}
+      {hasSource && <Handle type="source" position={Position.Right} style={{ background: color, width: 10, height: 10 }} />}
     </div>
   )
 }
@@ -106,7 +106,7 @@ function ConditionNode({ data, selected }: NodeProps<FlowNode>) {
   const unitLabels: Record<string, string> = { minutes: 'minutos', hours: 'horas', days: 'dias' }
   return (
     <div className={`rounded-xl border-2 shadow-sm w-56 overflow-hidden transition-shadow ${selected ? 'ring-2 ring-blue-400' : ''}`} style={{ borderColor: '#f97316' }}>
-      <Handle type="target" position={Position.Top} style={{ background: '#f97316', width: 10, height: 10 }} />
+      <Handle type="target" position={Position.Left} style={{ background: '#f97316', width: 10, height: 10 }} />
       <div className="px-3 py-2 flex items-center gap-2 font-semibold text-sm text-gray-800" style={{ background: '#f9731622' }}>
         <GitBranch size={16} weight="fill" style={{ color: '#f97316' }} />
         Respondeu?
@@ -118,8 +118,8 @@ function ConditionNode({ data, selected }: NodeProps<FlowNode>) {
         <span className="text-emerald-600">Sim</span>
         <span className="text-red-500">Não</span>
       </div>
-      <Handle type="source" position={Position.Bottom} id="yes" style={{ background: '#10b981', width: 10, height: 10, left: '25%' }} />
-      <Handle type="source" position={Position.Bottom} id="no" style={{ background: '#ef4444', width: 10, height: 10, left: '75%' }} />
+      <Handle type="source" position={Position.Right} id="yes" style={{ background: '#10b981', width: 10, height: 10, top: '35%' }} />
+      <Handle type="source" position={Position.Right} id="no" style={{ background: '#ef4444', width: 10, height: 10, top: '65%' }} />
     </div>
   )
 }
@@ -341,7 +341,7 @@ export default function FunnelEditor({
       end: {},
       trigger: {},
     }
-    const position = { x: 100 + Math.random() * 200, y: 100 + nodes.length * 140 }
+    const position = { x: 100 + nodes.length * 300, y: 100 + Math.random() * 80 }
     const newNode: FlowNode = { id, type: blockType, position, data: { blockType, config: defaultConfig[blockType] || {} } }
     setNodes((prev) => {
       const next = [...prev, newNode]
