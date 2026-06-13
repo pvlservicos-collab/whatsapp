@@ -20,9 +20,9 @@ import { ORGANIZATION_ID } from '@/lib/automated-message'
  *
  * Como o número avisado aqui é apenas um identificador que o usuário envia
  * de volta numa mensagem do WhatsApp (ex: "Quero minha figurinha Numero
- * #96991712831"), primeiro tentamos localizar a conversa pelo número de
- * telefone do lead. Se não encontrar, procuramos uma mensagem recebida que
- * contenha esse número (ex: "#96991712831") para linkar com a conversa certa.
+ * #96991712831"), a prioridade é procurar uma mensagem recebida que contenha
+ * esse número (ex: "#96991712831") para linkar com a conversa certa. Se não
+ * encontrar, cai para o match direto pelo telefone do lead.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -43,32 +43,32 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: 'Campo "telefone" ausente ou inválido.' }, { status: 200 })
     }
 
-    // 1. Tenta achar o lead diretamente pelo telefone (caso seja o próprio número do WhatsApp)
-    const [leadByPhone] = await db.select({ id: leads.id })
-      .from(leads)
+    // 1. Prioridade: procura uma mensagem recebida contendo esse número
+    // (ex: "Quero minha figurinha Numero #96991712831")
+    const [match] = await db.select({ leadId: leadActivities.leadId })
+      .from(leadActivities)
       .where(and(
-        eq(leads.organizationId, ORGANIZATION_ID),
-        isNull(leads.deletedAt),
-        ilike(leads.phone, `%${telefone}`),
+        eq(leadActivities.organizationId, ORGANIZATION_ID),
+        sql`${leadActivities.metadata}->>'direction' = 'inbound'`,
+        ilike(leadActivities.content, `%${telefone}%`),
       ))
+      .orderBy(desc(leadActivities.createdAt))
       .limit(1)
 
-    let leadId = leadByPhone?.id
+    let leadId = match?.leadId
 
-    // 2. Se não achou, procura uma mensagem recebida contendo esse número
-    // (ex: "Quero minha figurinha Numero #96991712831")
+    // 2. Se não achou, tenta achar o lead diretamente pelo telefone (caso seja o próprio número do WhatsApp)
     if (!leadId) {
-      const [match] = await db.select({ leadId: leadActivities.leadId })
-        .from(leadActivities)
+      const [leadByPhone] = await db.select({ id: leads.id })
+        .from(leads)
         .where(and(
-          eq(leadActivities.organizationId, ORGANIZATION_ID),
-          sql`${leadActivities.metadata}->>'direction' = 'inbound'`,
-          ilike(leadActivities.content, `%${telefone}%`),
+          eq(leads.organizationId, ORGANIZATION_ID),
+          isNull(leads.deletedAt),
+          ilike(leads.phone, `%${telefone}`),
         ))
-        .orderBy(desc(leadActivities.createdAt))
         .limit(1)
 
-      leadId = match?.leadId
+      leadId = leadByPhone?.id
     }
 
     // 3. Ainda não encontrou: cria um lead novo pelo telefone informado
