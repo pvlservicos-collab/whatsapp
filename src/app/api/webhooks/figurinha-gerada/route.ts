@@ -4,13 +4,16 @@ import { leads, leadActivities, messageFunnels, pipelineStages } from '@/lib/sch
 import { eq, and, isNull, ilike, asc, desc, sql } from 'drizzle-orm'
 import { startExecution } from '@/lib/funnel-engine'
 import { ORGANIZATION_ID } from '@/lib/automated-message'
+import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { publishEvent, channels, events } from '@/lib/realtime'
 
 /**
  * POST /api/webhooks/figurinha-gerada
  *
  * Webhook interno (sem autenticação) chamado por outro sistema quando uma
- * figurinha é gerada para um número de telefone. Dispara o gatilho de funil
- * "geracaowhatsapp" para o lead correspondente.
+ * figurinha é gerada para um número de telefone. Envia ao lead correspondente
+ * uma mensagem com o link da figurinha e dispara o gatilho de funil
+ * "geracaowhatsapp" (se houver algum funil ativo configurado).
  *
  * Payload esperado:
  * {
@@ -91,7 +94,48 @@ export async function POST(req: NextRequest) {
       leadId = newLead.id
     }
 
-    // Dispara funis ativos com gatilho "geracaowhatsapp"
+    // Envia a mensagem com o link da figurinha pronta
+    const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads).where(eq(leads.id, leadId)).limit(1)
+
+    if (lead?.phone) {
+      const link = `https://gerarfigurinhas.vercel.app/figurinha/${telefone}`
+      const content = `✅ Figurinha pronta!\n\nSua figurinha já está disponível, confira pelo link:\n${link}`
+
+      const metadata: Record<string, any> = {
+        source: 'geracaowhatsapp',
+        direction: 'outbound',
+        automated: true,
+      }
+
+      try {
+        const result = await sendWhatsAppMessage(ORGANIZATION_ID, lead.phone, content)
+        metadata.whatsapp_message_id = result?.messages?.[0]?.id
+        metadata.send_status = 'sent'
+      } catch (err: any) {
+        metadata.send_status = 'failed'
+        metadata.send_error = err.message || 'Erro ao enviar mensagem.'
+      }
+
+      const [activity] = await db.insert(leadActivities).values({
+        organizationId: ORGANIZATION_ID,
+        leadId: lead.id,
+        type: 'whatsapp',
+        content,
+        metadata,
+      }).returning({ id: leadActivities.id })
+
+      await db.update(leads).set({
+        lastMessageContent: content,
+        lastMessageSenderType: 'automated',
+        lastActivityAt: new Date(),
+        isUnread: true,
+      }).where(eq(leads.id, lead.id))
+
+      await publishEvent(channels.leadActivities(lead.id), events.ACTIVITY_CREATED, { id: activity.id })
+      await publishEvent(channels.orgLeads(ORGANIZATION_ID), events.LEAD_UPDATED, { id: lead.id })
+    }
+
+    // Dispara funis ativos com gatilho "geracaowhatsapp" (caso haja algum configurado)
     const funnels = await db.select({ id: messageFunnels.id }).from(messageFunnels)
       .where(and(
         eq(messageFunnels.organizationId, ORGANIZATION_ID),
