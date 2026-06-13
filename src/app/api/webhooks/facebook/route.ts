@@ -14,6 +14,14 @@ import { db } from '@/lib/db'
 import { leads, leadActivities, pipelineStages, integrationMessageLogs } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
+import { ORGANIZATION_ID } from '@/lib/automated-message'
+import {
+  FIGURINHA_BUSCANDO_MESSAGE,
+  FIGURINHA_READY_TEST_NUMBERS,
+  buildFigurinhaProntaMessage,
+  extractFigurinhaNumero,
+  sendFigurinhaAutoMessage,
+} from '@/lib/figurinha'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -203,6 +211,18 @@ export async function POST(req: NextRequest) {
       status: 'success',
       payload: body,
     })
+
+    // Fluxo de figurinha: cliente pede "Quero minha figurinha Numero #..."
+    if (!isOutboundEcho && orgId === ORGANIZATION_ID) {
+      const numero = extractFigurinhaNumero(content)
+      if (numero) {
+        await sendFigurinhaAutoMessage(leadId, phone, FIGURINHA_BUSCANDO_MESSAGE, 'geracaowhatsapp_buscando')
+
+        if (FIGURINHA_READY_TEST_NUMBERS.has(numero)) {
+          await sendFigurinhaAutoMessage(leadId, phone, buildFigurinhaProntaMessage(numero), 'geracaowhatsapp')
+        }
+      }
+    }
 
     return Response.json({ status: 'ok' })
   } catch (err: any) {
