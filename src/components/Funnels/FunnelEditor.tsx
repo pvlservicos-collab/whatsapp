@@ -41,6 +41,7 @@ type FlowNode = Node<FunnelBlockData>
 const TRIGGER_LABELS: Record<string, string> = {
   novo_pago: 'Novo Pago',
   novo_recuperacao: 'Novo Recuperação',
+  geracaowhatsapp: 'Geração de Figurinha',
 }
 
 // ── Custom Nodes ────────────────────────────────────────────────────────────
@@ -173,6 +174,7 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
             >
               <option value="novo_recuperacao">Novo Recuperação</option>
               <option value="novo_pago">Novo Pago</option>
+              <option value="geracaowhatsapp">Geração de Figurinha</option>
             </select>
           </div>
         )}

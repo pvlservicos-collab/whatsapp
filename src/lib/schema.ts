@@ -283,7 +283,7 @@ export const webhookLogs = pgTable('webhook_logs', {
 })
 
 // ── Funil de Mensagens ────────────────────────────────────────────────────────
-export const funnelTriggerEnum = pgEnum('funnel_trigger', ['novo_pago', 'novo_recuperacao'])
+export const funnelTriggerEnum = pgEnum('funnel_trigger', ['novo_pago', 'novo_recuperacao', 'geracaowhatsapp'])
 export const funnelBlockTypeEnum = pgEnum('funnel_block_type', ['trigger', 'message', 'wait', 'condition', 'end'])
 export const funnelBranchEnum = pgEnum('funnel_branch', ['default', 'yes', 'no'])
 export const funnelExecutionStatusEnum = pgEnum('funnel_execution_status', ['running', 'waiting', 'waiting_condition', 'completed', 'stopped'])

@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { messageFunnels, funnelBlocks, funnelConnections } from '@/lib/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 
-const VALID_TRIGGERS = ['novo_pago', 'novo_recuperacao']
+const VALID_TRIGGERS = ['novo_pago', 'novo_recuperacao', 'geracaowhatsapp']
 const VALID_BLOCK_TYPES = ['trigger', 'message', 'wait', 'condition', 'end']
 const VALID_BRANCHES = ['default', 'yes', 'no']
 
