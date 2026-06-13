@@ -95,7 +95,7 @@ function WaitNode({ data, selected }: NodeProps<FlowNode>) {
   const config = data.config || {}
   const unitLabels: Record<string, string> = { seconds: 'segundos', minutes: 'minutos', hours: 'horas', days: 'dias' }
   return (
-    <NodeShell selected={selected} color="#f59e0b" icon={<HourglassSimple size={16} weight="fill" style={{ color: '#f59e0b' }} />} title="Tempo de Espera">
+    <NodeShell selected={selected} color="#f59e0b" icon={<HourglassSimple size={16} weight="fill" style={{ color: '#f59e0b' }} />} title="Espera Minha Mensagem">
       Aguardar {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}
     </NodeShell>
   )
@@ -109,7 +109,7 @@ function ConditionNode({ data, selected }: NodeProps<FlowNode>) {
       <Handle type="target" position={Position.Left} style={{ background: '#f97316', width: 10, height: 10 }} />
       <div className="px-3 py-2 flex items-center gap-2 font-semibold text-sm text-gray-800" style={{ background: '#f9731622' }}>
         <GitBranch size={16} weight="fill" style={{ color: '#f97316' }} />
-        Respondeu?
+        Espera Mensagem Dele
       </div>
       <div className="px-3 py-2 text-xs text-gray-600 bg-white">
         Janela: {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}
@@ -154,8 +154,8 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
         <h3 className="text-sm font-bold text-gray-900">
           {node.data.blockType === 'trigger' && 'Gatilho'}
           {node.data.blockType === 'message' && 'Mensagem'}
-          {node.data.blockType === 'wait' && 'Tempo de Espera'}
-          {node.data.blockType === 'condition' && 'Condição: Respondeu?'}
+          {node.data.blockType === 'wait' && 'Espera Minha Mensagem'}
+          {node.data.blockType === 'condition' && 'Espera Mensagem Dele'}
           {node.data.blockType === 'end' && 'Fim'}
         </h3>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -213,7 +213,7 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
         {(node.data.blockType === 'wait' || node.data.blockType === 'condition') && (
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              {node.data.blockType === 'wait' ? 'Tempo de espera' : 'Janela de espera por resposta'}
+              {node.data.blockType === 'wait' ? 'Espera Minha Mensagem' : 'Espera Mensagem Dele'}
             </label>
             <div className="flex gap-2">
               <input
@@ -378,10 +378,10 @@ export default function FunnelEditor({
             <Plus size={14} /> <ChatCircleDots size={14} weight="fill" style={{ color: '#3b82f6' }} /> Mensagem
           </button>
           <button onClick={() => addNode('wait')} className="flex items-center gap-2 text-xs font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg px-2 py-1.5 transition-colors">
-            <Plus size={14} /> <HourglassSimple size={14} weight="fill" style={{ color: '#f59e0b' }} /> Tempo de Espera
+            <Plus size={14} /> <HourglassSimple size={14} weight="fill" style={{ color: '#f59e0b' }} /> Espera Minha Mensagem
           </button>
           <button onClick={() => addNode('condition')} className="flex items-center gap-2 text-xs font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 rounded-lg px-2 py-1.5 transition-colors">
-            <Plus size={14} /> <GitBranch size={14} weight="fill" style={{ color: '#f97316' }} /> Respondeu?
+            <Plus size={14} /> <GitBranch size={14} weight="fill" style={{ color: '#f97316' }} /> Espera Mensagem Dele
           </button>
           <button onClick={() => addNode('end')} className="flex items-center gap-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg px-2 py-1.5 transition-colors">
             <Plus size={14} /> <FlagCheckered size={14} weight="fill" style={{ color: '#6b7280' }} /> Fim
