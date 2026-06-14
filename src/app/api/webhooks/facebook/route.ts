@@ -19,7 +19,6 @@ import {
   FIGURINHA_BUSCANDO_MESSAGE,
   FIGURINHA_READY_TEST_NUMBERS,
   buildFigurinhaFlowPreviewMessages,
-  buildFigurinhaProntaMessage,
   extractFigurinhaNumero,
   runFigurinhaFunnel,
   sendFigurinhaAutoMessage,
@@ -223,13 +222,10 @@ export async function POST(req: NextRequest) {
         )
 
         if (FIGURINHA_READY_TEST_NUMBERS.has(numero)) {
-          await runFigurinhaFunnel('geracaowhatsapp', leadId, numero, () =>
-            sendFigurinhaAutoMessage(leadId, phone, buildFigurinhaProntaMessage(numero), 'geracaowhatsapp')
-          )
-
-          // Número de teste/monitoramento: envia também todas as mensagens do
-          // fluxo (exatamente como seriam enviadas ao cliente), uma por uma,
-          // só para uso interno.
+          // Número de teste/monitoramento: o fluxo único (pedido_figurinha →
+          // geracaowhatsapp → abandono_preco) já cascateia automaticamente,
+          // então só enviamos o log com todas as mensagens do fluxo, uma por
+          // uma, exatamente como seriam enviadas ao cliente, só para uso interno.
           const previewMessages = await buildFigurinhaFlowPreviewMessages(numero, senderName)
           for (const message of previewMessages) {
             await sendFigurinhaAutoMessage(leadId, phone, message, 'geracaowhatsapp_log')
