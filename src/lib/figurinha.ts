@@ -278,6 +278,20 @@ export async function runFigurinhaFunnel(
   let started = false
 
   for (const funnel of funnels) {
+    // Evita iniciar uma nova execução se o lead já tem uma em andamento
+    // nesse funil (impede mensagens duplicadas por testes/triggers repetidos).
+    const [activeExecution] = await db.select({ id: funnelExecutions.id }).from(funnelExecutions)
+      .where(and(
+        eq(funnelExecutions.funnelId, funnel.id),
+        eq(funnelExecutions.leadId, leadId),
+        inArray(funnelExecutions.status, ['running', 'waiting', 'waiting_condition']),
+      ))
+      .limit(1)
+    if (activeExecution) {
+      started = true
+      continue
+    }
+
     const triggerBlocks = await db.select({ id: funnelBlocks.id, config: funnelBlocks.config }).from(funnelBlocks)
       .where(and(eq(funnelBlocks.funnelId, funnel.id), eq(funnelBlocks.type, 'trigger')))
 
