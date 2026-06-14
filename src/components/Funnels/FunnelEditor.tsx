@@ -104,7 +104,10 @@ function WaitNode({ data, selected }: NodeProps<FlowNode>) {
   const unitLabels: Record<string, string> = { seconds: 'segundos', minutes: 'minutos', hours: 'horas', days: 'dias' }
   return (
     <NodeShell selected={selected} color="#f59e0b" icon={<HourglassSimple size={16} weight="fill" style={{ color: '#f59e0b' }} />} title="Espera Minha Mensagem">
-      Aguardar {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}
+      <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-amber-700">
+        <span>⏰</span>
+        <span>Espera {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}</span>
+      </div>
     </NodeShell>
   )
 }
@@ -121,7 +124,12 @@ function ConditionNode({ data, selected }: NodeProps<FlowNode>) {
       </div>
       <div className="px-3 py-2 text-xs text-gray-600 bg-white">
         <p className="truncate">{CONDITION_TYPE_LABELS[config.conditionType] || CONDITION_TYPE_LABELS.respondeu}</p>
-        Janela: {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}
+      </div>
+      <div className="px-3 pb-2 bg-white">
+        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-amber-700">
+          <span>⏰</span>
+          <span>Espera {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}</span>
+        </div>
       </div>
       <div className="relative flex justify-between px-4 py-1.5 bg-gray-50 text-[11px] font-semibold">
         <span className="text-emerald-600">Sim</span>
