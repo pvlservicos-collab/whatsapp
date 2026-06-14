@@ -1,9 +1,10 @@
 import { db } from '@/lib/db'
-import { leads, leadActivities } from '@/lib/schema'
-import { eq } from 'drizzle-orm'
+import { leads, leadActivities, messageFunnels } from '@/lib/schema'
+import { eq, and, isNull } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { ORGANIZATION_ID } from '@/lib/automated-message'
+import { startExecution } from '@/lib/funnel-engine'
 
 /**
  * Mensagem enviada automaticamente quando o cliente pede a figurinha
@@ -71,4 +72,33 @@ export async function sendFigurinhaAutoMessage(leadId: string, phone: string, co
   await publishEvent(channels.orgLeads(ORGANIZATION_ID), events.LEAD_UPDATED, { id: leadId })
 
   return metadata
+}
+
+/**
+ * Dispara o funil ativo correspondente ao gatilho informado, passando o
+ * telefone da figurinha no contexto da execução (usado por {link_figurinha}).
+ * Se não houver funil ativo com esse gatilho, executa o fallback (mensagem fixa).
+ */
+export async function runFigurinhaFunnel(
+  trigger: 'pedido_figurinha' | 'geracaowhatsapp',
+  leadId: string,
+  telefone: string,
+  fallback: () => Promise<unknown>
+) {
+  const funnels = await db.select({ id: messageFunnels.id }).from(messageFunnels)
+    .where(and(
+      eq(messageFunnels.organizationId, ORGANIZATION_ID),
+      eq(messageFunnels.trigger, trigger),
+      eq(messageFunnels.isActive, true),
+      isNull(messageFunnels.deletedAt),
+    ))
+
+  if (funnels.length === 0) {
+    await fallback()
+    return
+  }
+
+  for (const funnel of funnels) {
+    await startExecution(funnel.id, ORGANIZATION_ID, leadId, { telefone })
+  }
 }

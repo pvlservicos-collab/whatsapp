@@ -45,9 +45,14 @@ async function getNextBlock(funnelId: string, sourceBlockId: string, branch: 'de
  * Substitui variáveis dinâmicas no texto da mensagem:
  * - {nome} → título/nome do lead
  * - {link} → URL rastreável que registra o clique em /f/{token}
+ * - {link_figurinha} → link de download da figurinha, a partir do telefone salvo no contexto da execução
  */
-async function renderMessage(text: string, opts: { leadTitle: string; executionId: string; blockId: string; trackableUrl?: string }) {
+async function renderMessage(text: string, opts: { leadTitle: string; executionId: string; blockId: string; trackableUrl?: string; context?: Record<string, any> }) {
   let rendered = text.replace(/\{nome\}/gi, opts.leadTitle || '')
+
+  if (opts.context?.telefone) {
+    rendered = rendered.replace(/\{link_figurinha\}/gi, `https://gerarfigurinhas.vercel.app/figurinha/${opts.context.telefone}`)
+  }
 
   if (rendered.includes('{link}') && opts.trackableUrl) {
     const token = randomBytes(8).toString('hex')
@@ -63,7 +68,7 @@ async function renderMessage(text: string, opts: { leadTitle: string; executionI
   return rendered
 }
 
-async function sendMessageBlock(execution: { id: string; funnelId: string; organizationId: string; leadId: string }, block: { id: string; config: any }) {
+async function sendMessageBlock(execution: { id: string; funnelId: string; organizationId: string; leadId: string; context?: any }, block: { id: string; config: any }) {
   const [lead] = await db.select({ id: leads.id, title: leads.title, phone: leads.phone })
     .from(leads).where(eq(leads.id, execution.leadId)).limit(1)
   if (!lead) return
@@ -74,6 +79,7 @@ async function sendMessageBlock(execution: { id: string; funnelId: string; organ
     executionId: execution.id,
     blockId: block.id,
     trackableUrl: config?.trackableUrl,
+    context: execution.context,
   })
 
   const [activity] = await db.insert(leadActivities).values({
@@ -175,7 +181,7 @@ export async function advanceExecution(executionId: string) {
 /**
  * Inicia uma nova execução de funil para um lead, a partir do bloco "trigger".
  */
-export async function startExecution(funnelId: string, organizationId: string, leadId: string) {
+export async function startExecution(funnelId: string, organizationId: string, leadId: string, context: Record<string, any> = {}) {
   const [triggerBlock] = await db.select({ id: funnelBlocks.id }).from(funnelBlocks)
     .where(and(eq(funnelBlocks.funnelId, funnelId), eq(funnelBlocks.type, 'trigger')))
     .limit(1)
@@ -187,6 +193,7 @@ export async function startExecution(funnelId: string, organizationId: string, l
     leadId,
     currentBlockId: triggerBlock.id,
     status: 'running',
+    context,
   }).returning({ id: funnelExecutions.id })
 
   await advanceExecution(execution.id)

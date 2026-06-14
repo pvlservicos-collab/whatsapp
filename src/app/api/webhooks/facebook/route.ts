@@ -20,6 +20,7 @@ import {
   FIGURINHA_READY_TEST_NUMBERS,
   buildFigurinhaProntaMessage,
   extractFigurinhaNumero,
+  runFigurinhaFunnel,
   sendFigurinhaAutoMessage,
 } from '@/lib/figurinha'
 
@@ -216,10 +217,14 @@ export async function POST(req: NextRequest) {
     if (!isOutboundEcho && orgId === ORGANIZATION_ID) {
       const numero = extractFigurinhaNumero(content)
       if (numero) {
-        await sendFigurinhaAutoMessage(leadId, phone, FIGURINHA_BUSCANDO_MESSAGE, 'geracaowhatsapp_buscando')
+        await runFigurinhaFunnel('pedido_figurinha', leadId, numero, () =>
+          sendFigurinhaAutoMessage(leadId, phone, FIGURINHA_BUSCANDO_MESSAGE, 'geracaowhatsapp_buscando')
+        )
 
         if (FIGURINHA_READY_TEST_NUMBERS.has(numero)) {
-          await sendFigurinhaAutoMessage(leadId, phone, buildFigurinhaProntaMessage(numero), 'geracaowhatsapp')
+          await runFigurinhaFunnel('geracaowhatsapp', leadId, numero, () =>
+            sendFigurinhaAutoMessage(leadId, phone, buildFigurinhaProntaMessage(numero), 'geracaowhatsapp')
+          )
         }
       }
     }

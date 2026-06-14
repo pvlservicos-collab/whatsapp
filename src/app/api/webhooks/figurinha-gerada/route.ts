@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { leads, leadActivities, messageFunnels, pipelineStages } from '@/lib/schema'
+import { leads, leadActivities, pipelineStages } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc, desc, sql } from 'drizzle-orm'
-import { startExecution } from '@/lib/funnel-engine'
 import { ORGANIZATION_ID } from '@/lib/automated-message'
-import { buildFigurinhaProntaMessage, sendFigurinhaAutoMessage } from '@/lib/figurinha'
+import { buildFigurinhaProntaMessage, runFigurinhaFunnel, sendFigurinhaAutoMessage } from '@/lib/figurinha'
 
 /**
  * POST /api/webhooks/figurinha-gerada
@@ -93,28 +92,16 @@ export async function POST(req: NextRequest) {
       leadId = newLead.id
     }
 
-    // Envia a mensagem com o link da figurinha pronta
+    // Envia a mensagem com o link da figurinha pronta (via funil ativo "geracaowhatsapp", se houver)
     const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads).where(eq(leads.id, leadId)).limit(1)
 
     if (lead?.phone) {
-      const content = buildFigurinhaProntaMessage(telefone)
-      await sendFigurinhaAutoMessage(lead.id, lead.phone, content, 'geracaowhatsapp')
+      await runFigurinhaFunnel('geracaowhatsapp', lead.id, telefone, () =>
+        sendFigurinhaAutoMessage(lead.id, lead.phone!, buildFigurinhaProntaMessage(telefone), 'geracaowhatsapp')
+      )
     }
 
-    // Dispara funis ativos com gatilho "geracaowhatsapp" (caso haja algum configurado)
-    const funnels = await db.select({ id: messageFunnels.id }).from(messageFunnels)
-      .where(and(
-        eq(messageFunnels.organizationId, ORGANIZATION_ID),
-        eq(messageFunnels.trigger, 'geracaowhatsapp'),
-        eq(messageFunnels.isActive, true),
-        isNull(messageFunnels.deletedAt),
-      ))
-
-    for (const funnel of funnels) {
-      await startExecution(funnel.id, ORGANIZATION_ID, leadId)
-    }
-
-    return Response.json({ ok: true, leadId, funnelsTriggered: funnels.length })
+    return Response.json({ ok: true, leadId })
   } catch (err: any) {
     console.error('[/api/webhooks/figurinha-gerada]', err)
     return Response.json({ ok: false, error: err.message || 'Erro interno.' }, { status: 200 })
