@@ -45,13 +45,22 @@ async function getNextBlock(funnelId: string, sourceBlockId: string, branch: 'de
  * Substitui variáveis dinâmicas no texto da mensagem:
  * - {nome} → título/nome do lead
  * - {link} → URL rastreável que registra o clique em /f/{token}
- * - {link_figurinha} → link de download da figurinha, a partir do telefone salvo no contexto da execução
+ * - {link_figurinha} → link de download da figurinha (também rastreável via /f/{token}),
+ *   a partir do telefone salvo no contexto da execução
  */
 async function renderMessage(text: string, opts: { leadTitle: string; executionId: string; blockId: string; trackableUrl?: string; context?: Record<string, any> }) {
   let rendered = text.replace(/\{nome\}/gi, opts.leadTitle || '')
 
-  if (opts.context?.telefone) {
-    rendered = rendered.replace(/\{link_figurinha\}/gi, `https://gerarfigurinhas.vercel.app/figurinha/${opts.context.telefone}`)
+  if (rendered.includes('{link_figurinha}') && opts.context?.telefone) {
+    const targetUrl = `https://gerarfigurinhas.vercel.app/figurinha/${opts.context.telefone}`
+    const token = randomBytes(8).toString('hex')
+    await db.insert(funnelClickEvents).values({
+      executionId: opts.executionId,
+      blockId: opts.blockId,
+      token,
+      targetUrl,
+    })
+    rendered = rendered.replace(/\{link_figurinha\}/gi, `${getBaseUrl()}/f/${token}`)
   }
 
   if (rendered.includes('{link}') && opts.trackableUrl) {
