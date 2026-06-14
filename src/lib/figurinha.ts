@@ -278,16 +278,15 @@ export async function runFigurinhaFunnel(
   let started = false
 
   for (const funnel of funnels) {
-    // Evita iniciar uma nova execução se o lead já tem uma em andamento
-    // nesse funil (impede mensagens duplicadas por testes/triggers repetidos).
-    const [activeExecution] = await db.select({ id: funnelExecutions.id }).from(funnelExecutions)
+    // Limita a 2 execuções simultâneas do mesmo funil por lead (evita
+    // acúmulo descontrolado de mensagens duplicadas em testes/triggers repetidos).
+    const activeExecutions = await db.select({ id: funnelExecutions.id }).from(funnelExecutions)
       .where(and(
         eq(funnelExecutions.funnelId, funnel.id),
         eq(funnelExecutions.leadId, leadId),
         inArray(funnelExecutions.status, ['running', 'waiting', 'waiting_condition']),
       ))
-      .limit(1)
-    if (activeExecution) {
+    if (activeExecutions.length >= 2) {
       started = true
       continue
     }
