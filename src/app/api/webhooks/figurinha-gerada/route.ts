@@ -1,9 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { leads, leadActivities, pipelineStages } from '@/lib/schema'
-import { eq, and, isNull, ilike, asc, desc, sql } from 'drizzle-orm'
-import { ORGANIZATION_ID } from '@/lib/automated-message'
-import { buildFigurinhaProntaMessage, runFigurinhaFunnel, sendFigurinhaAutoMessage } from '@/lib/figurinha'
+import { buildFigurinhaProntaMessage, findOrCreateLeadByFigurinhaPhone, runFigurinhaFunnel, sendFigurinhaAutoMessage } from '@/lib/figurinha'
 
 /**
  * POST /api/webhooks/figurinha-gerada
@@ -44,56 +40,8 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: 'Campo "telefone" ausente ou inválido.' }, { status: 200 })
     }
 
-    // 1. Prioridade: procura uma mensagem recebida contendo esse número
-    // (ex: "Quero minha figurinha Numero #96991712831")
-    const [match] = await db.select({ leadId: leadActivities.leadId })
-      .from(leadActivities)
-      .where(and(
-        eq(leadActivities.organizationId, ORGANIZATION_ID),
-        sql`${leadActivities.metadata}->>'direction' = 'inbound'`,
-        ilike(leadActivities.content, `%${telefone}%`),
-      ))
-      .orderBy(desc(leadActivities.createdAt))
-      .limit(1)
-
-    let leadId = match?.leadId
-
-    // 2. Se não achou, tenta achar o lead diretamente pelo telefone (caso seja o próprio número do WhatsApp)
-    if (!leadId) {
-      const [leadByPhone] = await db.select({ id: leads.id })
-        .from(leads)
-        .where(and(
-          eq(leads.organizationId, ORGANIZATION_ID),
-          isNull(leads.deletedAt),
-          ilike(leads.phone, `%${telefone}`),
-        ))
-        .limit(1)
-
-      leadId = leadByPhone?.id
-    }
-
-    // 3. Ainda não encontrou: cria um lead novo pelo telefone informado
-    if (!leadId) {
-      const [firstStage] = await db.select({ id: pipelineStages.id }).from(pipelineStages)
-        .where(and(eq(pipelineStages.organizationId, ORGANIZATION_ID), isNull(pipelineStages.deletedAt)))
-        .orderBy(asc(pipelineStages.rank)).limit(1)
-
-      const phone = telefone.length <= 11 ? `55${telefone}` : telefone
-
-      const [newLead] = await db.insert(leads).values({
-        organizationId: ORGANIZATION_ID,
-        title: phone,
-        phone,
-        stageId: firstStage?.id || null,
-        lastActivityAt: new Date(),
-        customAttributes: { source: 'geracaowhatsapp' },
-      }).returning({ id: leads.id })
-
-      leadId = newLead.id
-    }
-
     // Envia a mensagem com o link da figurinha pronta (via funil ativo "geracaowhatsapp", se houver)
-    const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads).where(eq(leads.id, leadId)).limit(1)
+    const lead = await findOrCreateLeadByFigurinhaPhone(telefone)
 
     if (lead?.phone) {
       await runFigurinhaFunnel('geracaowhatsapp', lead.id, telefone, () =>
@@ -101,7 +49,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    return Response.json({ ok: true, leadId })
+    return Response.json({ ok: true, leadId: lead.id })
   } catch (err: any) {
     console.error('[/api/webhooks/figurinha-gerada]', err)
     return Response.json({ ok: false, error: err.message || 'Erro interno.' }, { status: 200 })

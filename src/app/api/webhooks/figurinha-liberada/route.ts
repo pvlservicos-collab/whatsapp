@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { integrationMessageLogs } from '@/lib/schema'
 import { extractPhone, sendAutomatedMessage, ORGANIZATION_ID } from '@/lib/automated-message'
+import { markFunnelExecutionContext } from '@/lib/figurinha'
 
 /**
  * POST /api/webhooks/figurinha-liberada
@@ -54,6 +55,10 @@ Utilize seu número do telefone
 E aproveita que na mesma página você também acessa todos os nossos outros produtos! 👀🔥`
 
   const result = await sendAutomatedMessage({ phone, content, source: 'figurinha_liberada', raw, parsed })
+
+  if (result.leadId) {
+    await markFunnelExecutionContext(result.leadId, 'abandono_preco', { pagamento_confirmado: true })
+  }
 
   return Response.json({ status: 'ok', lead_id: result.leadId, activity_id: result.activityId })
 }

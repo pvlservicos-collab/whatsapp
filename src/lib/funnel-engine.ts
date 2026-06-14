@@ -63,6 +63,18 @@ async function renderMessage(text: string, opts: { leadTitle: string; executionI
     rendered = rendered.replace(/\{link_figurinha\}/gi, `${getBaseUrl()}/f/${token}`)
   }
 
+  if (rendered.includes('{link_desconto}') && opts.context?.telefone) {
+    const targetUrl = `https://gerarfigurinhas.vercel.app/preview-desconto/${opts.context.telefone}`
+    const token = randomBytes(8).toString('hex')
+    await db.insert(funnelClickEvents).values({
+      executionId: opts.executionId,
+      blockId: opts.blockId,
+      token,
+      targetUrl,
+    })
+    rendered = rendered.replace(/\{link_desconto\}/gi, `${getBaseUrl()}/f/${token}`)
+  }
+
   if (rendered.includes('{link}') && opts.trackableUrl) {
     const token = randomBytes(8).toString('hex')
     await db.insert(funnelClickEvents).values({
@@ -240,10 +252,21 @@ export async function processTick() {
   for (const execution of pendingConditions) {
     if (!execution.currentBlockId) continue
     const context = (execution.context as any) || {}
-    const lastMessageAt = context.lastMessageAt ? new Date(context.lastMessageAt) : execution.startedAt
 
-    // Verifica se chegou alguma mensagem inbound após a última mensagem do funil
-    const responded = await hasRespondedSince(execution.leadId, lastMessageAt as Date)
+    const [block] = await db.select({ config: funnelBlocks.config }).from(funnelBlocks)
+      .where(eq(funnelBlocks.id, execution.currentBlockId)).limit(1)
+    const conditionType = (block?.config as any)?.conditionType || 'respondeu'
+
+    // Verifica se a condição configurada já foi satisfeita
+    let responded = false
+    if (conditionType === 'clique_pagina') {
+      responded = !!context.viu_pagina || await hasClickedSince(execution.id)
+    } else if (conditionType === 'pagamento') {
+      responded = !!context.pagamento_confirmado
+    } else {
+      const lastMessageAt = context.lastMessageAt ? new Date(context.lastMessageAt) : execution.startedAt
+      responded = await hasRespondedSince(execution.leadId, lastMessageAt as Date)
+    }
 
     if (responded) {
       await db.insert(funnelResponseEvents).values({ executionId: execution.id, blockId: execution.currentBlockId, branch: 'yes' })
@@ -269,6 +292,13 @@ export async function processTick() {
   }
 
   return { processed, checkedWaits: dueWaits.length, checkedConditions: pendingConditions.length }
+}
+
+async function hasClickedSince(executionId: string) {
+  const [row] = await db.select({ id: funnelClickEvents.id }).from(funnelClickEvents)
+    .where(and(eq(funnelClickEvents.executionId, executionId), eq(funnelClickEvents.clicked, true)))
+    .limit(1)
+  return !!row
 }
 
 async function hasRespondedSince(leadId: string, since: Date) {

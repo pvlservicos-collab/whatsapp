@@ -43,6 +43,13 @@ const TRIGGER_LABELS: Record<string, string> = {
   novo_recuperacao: 'Novo Recuperação',
   geracaowhatsapp: 'Geração de Figurinha',
   pedido_figurinha: 'Pedido de Figurinha',
+  abandono_preco: 'Abandono de Preço',
+}
+
+const CONDITION_TYPE_LABELS: Record<string, string> = {
+  respondeu: 'Respondeu mensagem',
+  clique_pagina: 'Clicou no link / viu a página',
+  pagamento: 'Pagamento confirmado',
 }
 
 // ── Custom Nodes ────────────────────────────────────────────────────────────
@@ -113,6 +120,7 @@ function ConditionNode({ data, selected }: NodeProps<FlowNode>) {
         Espera Mensagem Dele
       </div>
       <div className="px-3 py-2 text-xs text-gray-600 bg-white">
+        <p className="truncate">{CONDITION_TYPE_LABELS[config.conditionType] || CONDITION_TYPE_LABELS.respondeu}</p>
         Janela: {config.value ?? 0} {unitLabels[config.unit] || 'minutos'}
       </div>
       <div className="relative flex justify-between px-4 py-1.5 bg-gray-50 text-[11px] font-semibold">
@@ -177,6 +185,7 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
               <option value="novo_pago">Novo Pago</option>
               <option value="pedido_figurinha">Pedido de Figurinha</option>
               <option value="geracaowhatsapp">Geração de Figurinha</option>
+              <option value="abandono_preco">Abandono de Preço</option>
             </select>
           </div>
         )}
@@ -193,7 +202,7 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Use <code className="bg-gray-100 px-1 rounded">{'{nome}'}</code> para o nome do lead e <code className="bg-gray-100 px-1 rounded">{'{link}'}</code> para o link rastreável.
+                Use <code className="bg-gray-100 px-1 rounded">{'{nome}'}</code> para o nome do lead, <code className="bg-gray-100 px-1 rounded">{'{link}'}</code> para o link rastreável, <code className="bg-gray-100 px-1 rounded">{'{link_figurinha}'}</code> para o link da figurinha e <code className="bg-gray-100 px-1 rounded">{'{link_desconto}'}</code> para o link de desconto.
               </p>
             </div>
             <div>
@@ -210,6 +219,21 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
               </p>
             </div>
           </>
+        )}
+
+        {node.data.blockType === 'condition' && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">O que verificar</label>
+            <select
+              value={config.conditionType || 'respondeu'}
+              onChange={(e) => onChange({ ...config, conditionType: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {Object.entries(CONDITION_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
         )}
 
         {(node.data.blockType === 'wait' || node.data.blockType === 'condition') && (
@@ -238,7 +262,7 @@ function BlockEditorPanel({ node, onChange, onDelete, onClose }: {
             </div>
             {node.data.blockType === 'condition' && (
               <p className="text-[11px] text-gray-400 mt-1">
-                Se o lead responder dentro desse período, segue pelo ramo "Sim". Caso contrário, pelo "Não".
+                Se a condição acima for satisfeita dentro desse período, segue pelo ramo "Sim". Caso contrário, pelo "Não".
               </p>
             )}
           </div>
