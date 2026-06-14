@@ -82,7 +82,7 @@ function NodeShell({ selected, color, icon, title, children, hasTarget = true, h
 function TriggerNode({ data, selected }: NodeProps<FlowNode>) {
   const config = data.config || {}
   return (
-    <NodeShell selected={selected} color="#8b5cf6" icon={<PlayCircle size={16} weight="fill" style={{ color: '#8b5cf6' }} />} title="Gatilho" hasTarget={false}>
+    <NodeShell selected={selected} color="#8b5cf6" icon={<PlayCircle size={16} weight="fill" style={{ color: '#8b5cf6' }} />} title="Gatilho de outro app" hasTarget={true}>
       {TRIGGER_LABELS[config.trigger] || 'Selecione o gatilho'}
     </NodeShell>
   )
