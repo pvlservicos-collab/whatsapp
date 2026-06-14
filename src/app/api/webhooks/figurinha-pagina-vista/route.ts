@@ -9,8 +9,18 @@ import { findOrCreateLeadByFigurinhaPhone, markFunnelExecutionContext } from '@/
  * Marca o contexto da execução do funil "geracaowhatsapp" como `viu_pagina`,
  * o que impede o envio do lembrete de "Você nem chegou a ver...".
  *
- * Payload esperado:
- * { "telefone": "96991712831" }
+ * Payload real enviado pelo app de figurinhas (campos extras são ignorados,
+ * só `telefone` é usado para identificar o cliente):
+ * {
+ *   "event": "figurinha_pagina_vista_abandono",
+ *   "telefone": "96991712831",
+ *   "nome": "...",
+ *   "email": null,
+ *   "sticker_id": "...",
+ *   "sticker_url": "...",
+ *   "preview_url": "...",
+ *   "link": "https://gerarfigurinhas.vercel.app/figurinha/96991712831"
+ * }
  */
 export async function POST(req: NextRequest) {
   try {
