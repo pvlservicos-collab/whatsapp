@@ -11,7 +11,7 @@ import { startExecution } from '@/lib/funnel-engine'
  * (ex: "Quero minha figurinha Numero #96991712831"), enquanto ela é gerada.
  */
 export const FIGURINHA_BUSCANDO_MESSAGE =
-  'Olá! Já encontrei seu cadastro, buscando sua figurinha... (pode levar até 1 minuto) ⏳'
+  'Olá! Já encontrei seu cadastro, buscando sua figurinha... (Aguarde 1 minuto) ⏳'
 
 /**
  * Números de teste cuja figurinha já deve ser considerada pronta
@@ -24,7 +24,7 @@ export const FIGURINHA_READY_TEST_NUMBERS = new Set(['96991712831'])
  * "Quero minha figurinha Numero #96991712831".
  */
 export function extractFigurinhaNumero(text: string): string | null {
-  const match = text.match(/figurinha[^\d#]*#?\s*(\d{8,15})/i)
+  const match = text.trim().match(/^Quero minha figurinha Numero #(\d{8,15})$/i)
   return match ? match[1] : null
 }
 
