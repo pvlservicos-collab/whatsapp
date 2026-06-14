@@ -8,6 +8,9 @@ const VALID_TRIGGERS = ['novo_pago', 'novo_recuperacao', 'geracaowhatsapp', 'ped
 const VALID_BLOCK_TYPES = ['trigger', 'message', 'wait', 'condition', 'end']
 const VALID_BRANCHES = ['default', 'yes', 'no']
 
+// Funil de figurinha: nunca pode ser desativado/excluído, é o fluxo padrão do negócio.
+const PROTECTED_TRIGGER = 'geracaowhatsapp'
+
 /**
  * GET /api/funnels/[id]
  * Retorna o funil com seus blocos e conexões.
@@ -42,16 +45,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params
     const body = await req.json()
 
-    const [funnel] = await db.select({ id: messageFunnels.id }).from(messageFunnels)
+    const [funnel] = await db.select({ id: messageFunnels.id, trigger: messageFunnels.trigger }).from(messageFunnels)
       .where(and(eq(messageFunnels.id, id), eq(messageFunnels.organizationId, auth.organizationId), isNull(messageFunnels.deletedAt)))
       .limit(1)
     if (!funnel) return apiError(404, 'Funil não encontrado.')
 
+    const isProtected = funnel.trigger === PROTECTED_TRIGGER
+
     const updates: Record<string, any> = { updatedAt: new Date() }
     if (body.name !== undefined) updates.name = body.name
-    if (body.isActive !== undefined) updates.isActive = !!body.isActive
+    if (body.isActive !== undefined) {
+      if (isProtected && !body.isActive) {
+        return apiError(400, 'Este funil é o fluxo padrão de geração de figurinha e não pode ser desativado.')
+      }
+      updates.isActive = !!body.isActive
+    }
     if (body.trigger !== undefined) {
       if (!VALID_TRIGGERS.includes(body.trigger)) return apiError(400, `Gatilho inválido. Valores aceitos: ${VALID_TRIGGERS.join(', ')}`)
+      if (isProtected && body.trigger !== PROTECTED_TRIGGER) {
+        return apiError(400, 'Este funil é o fluxo padrão de geração de figurinha e seu gatilho não pode ser alterado.')
+      }
       updates.trigger = body.trigger
     }
 
@@ -136,10 +149,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const auth = await authenticateRequest(req)
     const { id } = await params
 
-    const [funnel] = await db.select({ id: messageFunnels.id }).from(messageFunnels)
+    const [funnel] = await db.select({ id: messageFunnels.id, trigger: messageFunnels.trigger }).from(messageFunnels)
       .where(and(eq(messageFunnels.id, id), eq(messageFunnels.organizationId, auth.organizationId), isNull(messageFunnels.deletedAt)))
       .limit(1)
     if (!funnel) return apiError(404, 'Funil não encontrado.')
+
+    if (funnel.trigger === PROTECTED_TRIGGER) {
+      return apiError(400, 'Este funil é o fluxo padrão de geração de figurinha e não pode ser excluído.')
+    }
 
     await db.update(messageFunnels).set({ deletedAt: new Date(), isActive: false }).where(eq(messageFunnels.id, id))
 

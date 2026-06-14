@@ -54,6 +54,7 @@ export default function FunnelsPage() {
   }, [])
 
   const toggleActive = async (funnel: FunnelSummary) => {
+    if (funnel.trigger === 'geracaowhatsapp') return
     setFunnels(prev => prev.map(f => f.id === funnel.id ? { ...f, is_active: !f.is_active } : f))
     try {
       const res = await fetch(`/api/funnels/${funnel.id}`, {
@@ -152,13 +153,18 @@ export default function FunnelsPage() {
                   <td className="px-6 py-3">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleActive(funnel) }}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${funnel.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                      disabled={funnel.trigger === 'geracaowhatsapp'}
+                      title={funnel.trigger === 'geracaowhatsapp' ? 'Fluxo padrão: não pode ser desativado' : undefined}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${funnel.is_active ? 'bg-emerald-500' : 'bg-gray-300'} ${funnel.trigger === 'geracaowhatsapp' ? 'cursor-not-allowed opacity-80' : ''}`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${funnel.is_active ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                     </button>
                     <span className={`ml-2 text-xs font-semibold ${funnel.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
                       {funnel.is_active ? 'Ativo' : 'Inativo'}
                     </span>
+                    {funnel.trigger === 'geracaowhatsapp' && (
+                      <span className="ml-2 text-[10px] text-gray-400">🔒 padrão</span>
+                    )}
                   </td>
                   <td className="px-6 py-3 text-gray-700">{funnel.metrics.entradas}</td>
                   <td className="px-6 py-3 text-gray-700">{funnel.metrics.mensagens_enviadas}</td>

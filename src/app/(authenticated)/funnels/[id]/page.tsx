@@ -148,14 +148,19 @@ export default function FunnelEditorPage() {
         <div className="flex items-center gap-3 shrink-0">
           <label className="flex items-center gap-2 cursor-pointer">
             <button
-              onClick={() => setIsActive((v) => !v)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-emerald-500' : 'bg-gray-300'}`}
+              onClick={() => { if (trigger !== 'geracaowhatsapp') setIsActive((v) => !v) }}
+              disabled={trigger === 'geracaowhatsapp'}
+              title={trigger === 'geracaowhatsapp' ? 'Fluxo padrão: não pode ser desativado' : undefined}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-emerald-500' : 'bg-gray-300'} ${trigger === 'geracaowhatsapp' ? 'cursor-not-allowed opacity-80' : ''}`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
             </button>
             <span className={`text-xs font-semibold ${isActive ? 'text-emerald-600' : 'text-gray-400'}`}>
               {isActive ? 'Ativo' : 'Inativo'}
             </span>
+            {trigger === 'geracaowhatsapp' && (
+              <span className="text-[10px] text-gray-400">🔒 padrão</span>
+            )}
           </label>
 
           <button
