@@ -300,6 +300,26 @@ export async function processTick() {
   return { processed, checkedWaits: dueWaits.length, checkedConditions: pendingConditions.length }
 }
 
+/**
+ * Resolve imediatamente uma execução parada em "waiting_condition" para o
+ * ramo informado (yes/no), sem esperar o próximo tick do cron. Usado quando
+ * um webhook externo já confirma a condição (ex: lead visitou a página).
+ */
+export async function resolveConditionNow(executionId: string, branch: 'yes' | 'no') {
+  const [execution] = await db.select().from(funnelExecutions).where(eq(funnelExecutions.id, executionId)).limit(1)
+  if (!execution || !execution.currentBlockId || execution.status !== 'waiting_condition') return
+
+  await db.insert(funnelResponseEvents).values({ executionId: execution.id, blockId: execution.currentBlockId, branch })
+
+  const next = await getNextBlock(execution.funnelId, execution.currentBlockId, branch)
+  if (!next) {
+    await db.update(funnelExecutions).set({ status: 'completed', updatedAt: new Date() }).where(eq(funnelExecutions.id, execution.id))
+    return
+  }
+  await db.update(funnelExecutions).set({ currentBlockId: next.id, status: 'running', updatedAt: new Date() }).where(eq(funnelExecutions.id, execution.id))
+  await advanceExecution(execution.id)
+}
+
 async function hasClickedSince(executionId: string) {
   const [row] = await db.select({ id: funnelClickEvents.id }).from(funnelClickEvents)
     .where(and(eq(funnelClickEvents.executionId, executionId), eq(funnelClickEvents.clicked, true)))

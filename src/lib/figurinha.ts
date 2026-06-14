@@ -4,7 +4,7 @@ import { eq, and, isNull, ilike, asc, desc, sql, inArray } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { ORGANIZATION_ID } from '@/lib/automated-message'
-import { startExecution } from '@/lib/funnel-engine'
+import { startExecution, resolveConditionNow } from '@/lib/funnel-engine'
 
 /**
  * Mensagem enviada automaticamente quando o cliente pede a figurinha
@@ -116,6 +116,27 @@ export async function markFunnelExecutionContext(leadId: string, _trigger: strin
       context: { ...(exec.context as object), ...patch },
       updatedAt: new Date(),
     }).where(eq(funnelExecutions.id, exec.id))
+
+    // Se o evento confirma a condição que a execução está esperando (visita à
+    // página ou pagamento), resolve agora o ramo "yes" sem esperar o próximo
+    // tick do cron, disparando a mensagem correspondente imediatamente.
+    const resolvedConditionTypes: string[] = []
+    if (patch.viu_pagina) resolvedConditionTypes.push('clique_pagina')
+    if (patch.pagamento_confirmado) resolvedConditionTypes.push('pagamento')
+
+    if (resolvedConditionTypes.length > 0) {
+      const [current] = await db.select({ status: funnelExecutions.status, currentBlockId: funnelExecutions.currentBlockId })
+        .from(funnelExecutions).where(eq(funnelExecutions.id, exec.id)).limit(1)
+
+      if (current?.status === 'waiting_condition' && current.currentBlockId) {
+        const [block] = await db.select({ config: funnelBlocks.config }).from(funnelBlocks)
+          .where(eq(funnelBlocks.id, current.currentBlockId)).limit(1)
+
+        if (resolvedConditionTypes.includes((block?.config as any)?.conditionType)) {
+          await resolveConditionNow(exec.id, 'yes')
+        }
+      }
+    }
   }
 }
 
