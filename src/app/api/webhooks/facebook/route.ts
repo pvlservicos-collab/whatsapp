@@ -18,6 +18,7 @@ import { ORGANIZATION_ID } from '@/lib/automated-message'
 import {
   FIGURINHA_BUSCANDO_MESSAGE,
   FIGURINHA_READY_TEST_NUMBERS,
+  buildFigurinhaFlowLogMessage,
   buildFigurinhaProntaMessage,
   extractFigurinhaNumero,
   runFigurinhaFunnel,
@@ -225,6 +226,11 @@ export async function POST(req: NextRequest) {
           await runFigurinhaFunnel('geracaowhatsapp', leadId, numero, () =>
             sendFigurinhaAutoMessage(leadId, phone, buildFigurinhaProntaMessage(numero), 'geracaowhatsapp')
           )
+
+          // Número de teste/monitoramento: envia também o log completo do fluxo
+          // (gatilhos, mensagens, esperas e condições), só para uso interno.
+          const logMessage = await buildFigurinhaFlowLogMessage()
+          await sendFigurinhaAutoMessage(leadId, phone, logMessage, 'geracaowhatsapp_log')
         }
       }
     }

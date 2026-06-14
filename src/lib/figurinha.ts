@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { leads, leadActivities, messageFunnels, pipelineStages, funnelExecutions } from '@/lib/schema'
+import { leads, leadActivities, messageFunnels, pipelineStages, funnelExecutions, funnelBlocks, funnelConnections } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc, desc, sql, inArray } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { publishEvent, channels, events } from '@/lib/realtime'
@@ -163,6 +163,124 @@ export async function sendFigurinhaAutoMessage(leadId: string, phone: string, co
  * telefone da figurinha no contexto da execução (usado por {link_figurinha}).
  * Se não houver funil ativo com esse gatilho, executa o fallback (mensagem fixa).
  */
+const WAIT_UNIT_LABELS: Record<string, string> = { seconds: 'segundos', minutes: 'minutos', hours: 'horas', days: 'dias' }
+const CONDITION_LABELS: Record<string, string> = {
+  respondeu: 'respondeu mensagem',
+  clique_pagina: 'clicou no link / viu a página',
+  pagamento: 'pagamento confirmado',
+}
+
+/**
+ * Monta uma descrição textual passo a passo de um funil (gatilho, mensagens,
+ * esperas e condições com seus ramos "sim"/"não"), usada para o log de
+ * monitoramento enviado ao número de teste.
+ */
+async function describeFunnel(funnelId: string): Promise<string[]> {
+  const blocks = await db.select().from(funnelBlocks).where(eq(funnelBlocks.funnelId, funnelId))
+  const connections = await db.select().from(funnelConnections).where(eq(funnelConnections.funnelId, funnelId))
+  const blockMap = new Map(blocks.map(b => [b.id, b]))
+  const trigger = blocks.find(b => b.type === 'trigger')
+  if (!trigger) return ['(funil sem blocos configurados)']
+
+  const lines: string[] = []
+
+  function describeBlock(block: { type: string; config: any }, prefix: string) {
+    const config = block.config || {}
+    if (block.type === 'message') {
+      const firstLine = (config.text || '').split('\n')[0]
+      const preview = firstLine.length > 60 ? `${firstLine.slice(0, 60)}...` : firstLine
+      lines.push(`${prefix}💬 Mensagem: "${preview}"`)
+    } else if (block.type === 'wait') {
+      lines.push(`${prefix}⏳ Espera ${config.value ?? 0} ${WAIT_UNIT_LABELS[config.unit] || 'minutos'}`)
+    } else if (block.type === 'condition') {
+      const label = CONDITION_LABELS[config.conditionType] || CONDITION_LABELS.respondeu
+      lines.push(`${prefix}🔀 Condição: ${label} (janela de ${config.value ?? 0} ${WAIT_UNIT_LABELS[config.unit] || 'minutos'})`)
+    } else if (block.type === 'end') {
+      lines.push(`${prefix}🏁 Fim`)
+    }
+  }
+
+  function walk(block: { id: string; type: string; config: any }, prefix: string, visited: Set<string>) {
+    if (visited.has(block.id)) {
+      lines.push(`${prefix}↩️ (volta para passo já percorrido)`)
+      return
+    }
+    visited.add(block.id)
+    describeBlock(block, prefix)
+    if (block.type === 'end') return
+
+    const conns = connections.filter(c => c.sourceBlockId === block.id)
+
+    if (block.type === 'condition') {
+      const yes = conns.find(c => c.branch === 'yes')
+      const no = conns.find(c => c.branch === 'no')
+      if (yes) {
+        lines.push(`${prefix}  ↳ Se SIM:`)
+        const target = blockMap.get(yes.targetBlockId)
+        if (target) walk(target as any, `${prefix}      `, new Set(visited))
+      }
+      if (no) {
+        lines.push(`${prefix}  ↳ Se NÃO:`)
+        const target = blockMap.get(no.targetBlockId)
+        if (target) walk(target as any, `${prefix}      `, new Set(visited))
+      }
+    } else {
+      const next = conns.find(c => c.branch === 'default' || !c.branch)
+      if (next) {
+        const target = blockMap.get(next.targetBlockId)
+        if (target) walk(target as any, prefix, visited)
+      }
+    }
+  }
+
+  describeBlock(trigger as any, '')
+  const visited = new Set<string>([trigger.id])
+  for (const conn of connections.filter(c => c.sourceBlockId === trigger.id)) {
+    const target = blockMap.get(conn.targetBlockId)
+    if (target) walk(target as any, '', new Set(visited))
+  }
+
+  return lines
+}
+
+/**
+ * Monta a mensagem de log com o fluxo completo (gatilhos, mensagens, esperas e
+ * condições) de todos os funis de figurinha. Enviada apenas para o número de
+ * teste/monitoramento (FIGURINHA_READY_TEST_NUMBERS), nunca para clientes reais.
+ */
+export async function buildFigurinhaFlowLogMessage(): Promise<string> {
+  const triggerLabels: { trigger: 'pedido_figurinha' | 'geracaowhatsapp' | 'abandono_preco'; label: string }[] = [
+    { trigger: 'pedido_figurinha', label: 'Gatilho 1 — Pedido de Figurinha' },
+    { trigger: 'geracaowhatsapp', label: 'Gatilho 2 — Geração de Figurinha' },
+    { trigger: 'abandono_preco', label: 'Gatilho 3 — Abandono de Preço' },
+  ]
+
+  const sections: string[] = []
+
+  for (const { trigger, label } of triggerLabels) {
+    const funnels = await db.select({ id: messageFunnels.id, name: messageFunnels.name, isActive: messageFunnels.isActive })
+      .from(messageFunnels)
+      .where(and(
+        eq(messageFunnels.organizationId, ORGANIZATION_ID),
+        eq(messageFunnels.trigger, trigger),
+        isNull(messageFunnels.deletedAt),
+      ))
+
+    if (funnels.length === 0) {
+      sections.push(`${label}\n(nenhum funil cadastrado)`)
+      continue
+    }
+
+    for (const funnel of funnels) {
+      const status = funnel.isActive ? '✅ ativo' : '⏸️ inativo'
+      const lines = await describeFunnel(funnel.id)
+      sections.push(`${label} — "${funnel.name}" (${status})\n${lines.join('\n')}`)
+    }
+  }
+
+  return `🛠️ LOG DO FLUXO DE FIGURINHA\n\n${sections.join('\n\n')}`
+}
+
 export async function runFigurinhaFunnel(
   trigger: 'pedido_figurinha' | 'geracaowhatsapp' | 'abandono_preco',
   leadId: string,
