@@ -52,6 +52,21 @@ const CONDITION_TYPE_LABELS: Record<string, string> = {
   pagamento: 'Pagamento confirmado',
 }
 
+// Webhook que dispara cada gatilho de funil (ajuda a identificar qual evento externo aciona o bloco).
+const TRIGGER_WEBHOOKS: Record<string, string> = {
+  novo_pago: '/api/webhooks/figurinha-liberada',
+  novo_recuperacao: '/api/webhooks/recuperacao',
+  geracaowhatsapp: '/api/webhooks/figurinha-gerada',
+  pedido_figurinha: '/api/webhooks/facebook (mensagem do cliente)',
+  abandono_preco: '/api/webhooks/figurinha-abandono-preco',
+}
+
+// Webhook que resolve cada tipo de condição (quando aplicável).
+const CONDITION_WEBHOOKS: Record<string, string> = {
+  clique_pagina: '/api/webhooks/figurinha-pagina-vista',
+  pagamento: '/api/webhooks/figurinha-liberada',
+}
+
 // ── Custom Nodes ────────────────────────────────────────────────────────────
 
 function NodeShell({ selected, color, icon, title, children, hasTarget = true, hasSource = true }: {
@@ -81,9 +96,11 @@ function NodeShell({ selected, color, icon, title, children, hasTarget = true, h
 
 function TriggerNode({ data, selected }: NodeProps<FlowNode>) {
   const config = data.config || {}
+  const webhook = TRIGGER_WEBHOOKS[config.trigger]
   return (
     <NodeShell selected={selected} color="#8b5cf6" icon={<PlayCircle size={16} weight="fill" style={{ color: '#8b5cf6' }} />} title="Gatilho de outro app" hasTarget={true}>
       {TRIGGER_LABELS[config.trigger] || 'Selecione o gatilho'}
+      {webhook && <p className="mt-1 text-[10px] text-violet-500 font-mono break-all">📡 {webhook}</p>}
     </NodeShell>
   )
 }
@@ -124,6 +141,9 @@ function ConditionNode({ data, selected }: NodeProps<FlowNode>) {
       </div>
       <div className="px-3 py-2 text-xs text-gray-600 bg-white">
         <p className="truncate">{CONDITION_TYPE_LABELS[config.conditionType] || CONDITION_TYPE_LABELS.respondeu}</p>
+        {CONDITION_WEBHOOKS[config.conditionType] && (
+          <p className="mt-1 text-[10px] text-orange-500 font-mono break-all">📡 {CONDITION_WEBHOOKS[config.conditionType]}</p>
+        )}
       </div>
       <div className="px-3 pb-2 bg-white">
         <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-amber-700">
