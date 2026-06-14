@@ -202,10 +202,15 @@ export async function advanceExecution(executionId: string) {
 /**
  * Inicia uma nova execução de funil para um lead, a partir do bloco "trigger".
  */
-export async function startExecution(funnelId: string, organizationId: string, leadId: string, context: Record<string, any> = {}) {
-  const [triggerBlock] = await db.select({ id: funnelBlocks.id }).from(funnelBlocks)
-    .where(and(eq(funnelBlocks.funnelId, funnelId), eq(funnelBlocks.type, 'trigger')))
-    .limit(1)
+export async function startExecution(funnelId: string, organizationId: string, leadId: string, context: Record<string, any> = {}, triggerBlockId?: string) {
+  let triggerBlock: { id: string } | undefined = triggerBlockId ? { id: triggerBlockId } : undefined
+
+  if (!triggerBlock) {
+    const [found] = await db.select({ id: funnelBlocks.id }).from(funnelBlocks)
+      .where(and(eq(funnelBlocks.funnelId, funnelId), eq(funnelBlocks.type, 'trigger')))
+      .limit(1)
+    triggerBlock = found
+  }
   if (!triggerBlock) return null
 
   const [execution] = await db.insert(funnelExecutions).values({
