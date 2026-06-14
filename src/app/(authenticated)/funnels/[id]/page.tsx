@@ -24,12 +24,16 @@ export default function FunnelEditorPage() {
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [isActive, setIsActive] = useState(false)
+  const [trigger, setTrigger] = useState('novo_recuperacao')
   const [nodes, setNodes] = useState<FlowNode[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   const flowRef = useRef<{ nodes: FlowNode[]; edges: Edge[] }>({ nodes: [], edges: [] })
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stateRef = useRef({ name, isActive, trigger })
+  stateRef.current = { name, isActive, trigger }
 
   useEffect(() => {
     const load = async () => {
@@ -41,6 +45,7 @@ export default function FunnelEditorPage() {
       const { data } = await res.json()
       setName(data.name)
       setIsActive(!!data.is_active)
+      setTrigger(data.trigger)
 
       const flowNodes: FlowNode[] = data.blocks.map((b: any) => ({
         id: b.id,
@@ -48,7 +53,7 @@ export default function FunnelEditorPage() {
         position: { x: Number(b.positionX) || 0, y: Number(b.positionY) || 0 },
         data: {
           blockType: b.type,
-          config: b.type === 'trigger' ? { ...b.config, trigger: data.trigger } : (b.config || {}),
+          config: b.type === 'trigger' ? { ...(b.config || {}), trigger: (b.config?.trigger ?? data.trigger) } : (b.config || {}),
         },
       }))
 
@@ -73,23 +78,17 @@ export default function FunnelEditorPage() {
     load()
   }, [funnelId])
 
-  const handleFlowChange = useCallback((n: FlowNode[], e: Edge[]) => {
-    flowRef.current = { nodes: n, edges: e }
-  }, [])
-
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaving(true)
     setSaved(false)
     try {
       const { nodes: currentNodes, edges: currentEdges } = flowRef.current
-
-      const triggerNode = currentNodes.find((n) => n.data.blockType === 'trigger')
-      const trigger = triggerNode?.data.config?.trigger || 'novo_recuperacao'
+      const { name: currentName, isActive: currentIsActive, trigger: currentTrigger } = stateRef.current
 
       const blocks = currentNodes.map((n) => ({
         id: n.id,
         type: n.data.blockType,
-        config: n.data.blockType === 'trigger' ? {} : (n.data.config || {}),
+        config: n.data.config || {},
         position: n.position,
       }))
 
@@ -102,7 +101,7 @@ export default function FunnelEditorPage() {
       const res = await fetch(`/api/funnels/${funnelId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, isActive, trigger, blocks, connections }),
+        body: JSON.stringify({ name: currentName, isActive: currentIsActive, trigger: currentTrigger, blocks, connections }),
       })
 
       if (res.ok) {
@@ -112,7 +111,16 @@ export default function FunnelEditorPage() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [funnelId])
+
+  const handleFlowChange = useCallback((n: FlowNode[], e: Edge[]) => {
+    flowRef.current = { nodes: n, edges: e }
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave()
+    }, 1000)
+  }, [handleSave])
 
   if (loading) {
     return (

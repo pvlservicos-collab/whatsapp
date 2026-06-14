@@ -65,20 +65,45 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
       }
 
-      // Substitui blocos e conexões (cascade remove conexões antigas)
-      await db.delete(funnelBlocks).where(eq(funnelBlocks.funnelId, id))
+      const existingBlocks = await db.select({ id: funnelBlocks.id }).from(funnelBlocks).where(eq(funnelBlocks.funnelId, id))
+      const existingIds = new Set(existingBlocks.map((b) => b.id))
 
+      // Atualiza blocos existentes (preservando o id) e insere os novos
       const idMap = new Map<string, string>()
+      const keptIds = new Set<string>()
       for (const b of body.blocks) {
-        const [inserted] = await db.insert(funnelBlocks).values({
-          funnelId: id,
-          type: b.type,
-          config: b.config || {},
-          positionX: String(b.position?.x ?? 0),
-          positionY: String(b.position?.y ?? 0),
-        }).returning({ id: funnelBlocks.id })
-        idMap.set(String(b.id), inserted.id)
+        const blockId = String(b.id)
+        if (existingIds.has(blockId)) {
+          await db.update(funnelBlocks).set({
+            type: b.type,
+            config: b.config || {},
+            positionX: String(b.position?.x ?? 0),
+            positionY: String(b.position?.y ?? 0),
+          }).where(eq(funnelBlocks.id, blockId))
+          idMap.set(blockId, blockId)
+          keptIds.add(blockId)
+        } else {
+          const [inserted] = await db.insert(funnelBlocks).values({
+            funnelId: id,
+            type: b.type,
+            config: b.config || {},
+            positionX: String(b.position?.x ?? 0),
+            positionY: String(b.position?.y ?? 0),
+          }).returning({ id: funnelBlocks.id })
+          idMap.set(blockId, inserted.id)
+          keptIds.add(inserted.id)
+        }
       }
+
+      // Remove blocos que não existem mais (cascade remove conexões antigas)
+      for (const existingId of existingIds) {
+        if (!keptIds.has(existingId)) {
+          await db.delete(funnelBlocks).where(eq(funnelBlocks.id, existingId))
+        }
+      }
+
+      // Substitui conexões pela lista atual
+      await db.delete(funnelConnections).where(eq(funnelConnections.funnelId, id))
 
       if (Array.isArray(body.connections) && body.connections.length > 0) {
         const rows = body.connections

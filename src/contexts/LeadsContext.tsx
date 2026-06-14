@@ -30,10 +30,10 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
 
   const organizationId = currentOrganization?.organization_id
 
-  async function fetchLeads() {
+  async function fetchLeads(showLoading = true) {
     if (!organizationId) { setLoading(false); return }
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
       setError(null)
       const viewOwnOnly = permissions?.leads?.view_own_only
       const memberId = currentOrganization?.id
@@ -56,7 +56,7 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch leads')
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }
 
@@ -68,12 +68,12 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
   usePusherChannel(
     organizationId ? `org-${organizationId}` : '',
     {
-      'lead.created': () => fetchLeads(),
-      'lead.updated': () => fetchLeads(),
+      'lead.created': () => fetchLeads(false),
+      'lead.updated': () => fetchLeads(false),
       'lead.deleted': (data: any) => {
         if (data?.id) setLeads(prev => prev.filter(l => l.id !== data.id))
       },
-      '__reconnected': () => fetchLeads(),
+      '__reconnected': () => fetchLeads(false),
     }
   )
 
