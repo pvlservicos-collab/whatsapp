@@ -8,7 +8,7 @@ import { startExecution } from '@/lib/funnel-engine'
 
 /**
  * Mensagem enviada automaticamente quando o cliente pede a figurinha
- * (ex: "Quero minha figurinha Numero #96991712831"), enquanto ela é gerada.
+ * (ex: "Quero minha figurinha Nº#96991712831"), enquanto ela é gerada.
  */
 export const FIGURINHA_BUSCANDO_MESSAGE =
   'Olá! Já encontrei seu cadastro, buscando sua figurinha... (Aguarde 1 minuto) ⏳'
@@ -21,10 +21,12 @@ export const FIGURINHA_READY_TEST_NUMBERS = new Set(['96991712831'])
 
 /**
  * Extrai o número informado em mensagens do tipo
- * "Quero minha figurinha Numero #96991712831".
+ * "Quero minha figurinha Nº#96991712831".
  */
 export function extractFigurinhaNumero(text: string): string | null {
-  const match = text.trim().match(/^Quero minha figurinha Numero #(\d{8,15})$/i)
+  // Estrutura fixa: "Quero minha figurinha" + "N" (de "Nº"/"Numero"/"Num"...) +
+  // qualquer coisa curta sem dígitos + "#" + o número do cliente, sem mais nada antes/depois.
+  const match = text.trim().match(/^Quero minha figurinha\s*N[^\d#]{0,9}#(\d{8,15})$/i)
   return match ? match[1] : null
 }
 

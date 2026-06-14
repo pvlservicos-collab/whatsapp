@@ -5,6 +5,7 @@ import {
 } from '@/lib/schema'
 import { eq, and, lte } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
+import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { randomBytes } from 'crypto'
 
 const MAX_STEPS_PER_RUN = 25
@@ -103,20 +104,35 @@ async function sendMessageBlock(execution: { id: string; funnelId: string; organ
     context: execution.context,
   })
 
+  const metadata: Record<string, any> = {
+    source: 'funnel',
+    direction: 'outbound',
+    automated: true,
+    funnel_id: execution.funnelId,
+    execution_id: execution.id,
+    block_id: block.id,
+  }
+
+  if (!lead.phone) {
+    metadata.send_status = 'failed'
+    metadata.send_error = 'Lead sem telefone cadastrado.'
+  } else {
+    try {
+      const result = await sendWhatsAppMessage(execution.organizationId, lead.phone, content)
+      metadata.whatsapp_message_id = result?.messages?.[0]?.id
+      metadata.send_status = 'sent'
+    } catch (err: any) {
+      metadata.send_status = 'failed'
+      metadata.send_error = err.message || 'Erro ao enviar mensagem.'
+    }
+  }
+
   const [activity] = await db.insert(leadActivities).values({
     organizationId: execution.organizationId,
     leadId: lead.id,
     type: 'whatsapp',
     content,
-    metadata: {
-      source: 'funnel',
-      direction: 'outbound',
-      send_status: 'sent',
-      automated: true,
-      funnel_id: execution.funnelId,
-      execution_id: execution.id,
-      block_id: block.id,
-    },
+    metadata,
   }).returning({ id: leadActivities.id })
 
   await db.update(leads).set({

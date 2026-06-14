@@ -16,8 +16,8 @@ import { buildFigurinhaProntaMessage, findOrCreateLeadByFigurinhaPhone, runFigur
  * }
  *
  * Como o número avisado aqui é apenas um identificador que o usuário envia
- * de volta numa mensagem do WhatsApp (ex: "Quero minha figurinha Numero
- * #96991712831"), a prioridade é procurar uma mensagem recebida que contenha
+ * de volta numa mensagem do WhatsApp (ex: "Quero minha figurinha
+ * Nº#96991712831"), a prioridade é procurar uma mensagem recebida que contenha
  * esse número (ex: "#96991712831") para linkar com a conversa certa. Se não
  * encontrar, cai para o match direto pelo telefone do lead.
  */

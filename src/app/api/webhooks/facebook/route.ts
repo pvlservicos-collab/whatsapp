@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       payload: body,
     })
 
-    // Fluxo de figurinha: cliente pede "Quero minha figurinha Numero #..."
+    // Fluxo de figurinha: cliente pede "Quero minha figurinha Nº#..."
     if (!isOutboundEcho && orgId === ORGANIZATION_ID) {
       const numero = extractFigurinhaNumero(content)
       if (numero) {
