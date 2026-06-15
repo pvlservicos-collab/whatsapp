@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { leads, leadActivities, messageFunnels, pipelineStages, funnelExecutions, funnelBlocks, funnelConnections } from '@/lib/schema'
+import { leads, leadActivities, messageFunnels, pipelineStages, funnelExecutions, funnelBlocks, funnelConnections, tags, leadTags } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc, desc, sql, inArray } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { publishEvent, channels, events } from '@/lib/realtime'
@@ -87,6 +87,27 @@ export async function findOrCreateLeadByFigurinhaPhone(telefone: string): Promis
 
   const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads).where(eq(leads.id, leadId)).limit(1)
   return lead
+}
+
+/**
+ * Garante que o lead tenha a tag "figurinha" (cria a tag na organização se
+ * ainda não existir). Usado para marcar leads que entraram no funil de
+ * geração de figurinha via WhatsApp.
+ */
+async function ensureFigurinhaTag(leadId: string) {
+  let [tag] = await db.select({ id: tags.id }).from(tags)
+    .where(and(eq(tags.organizationId, ORGANIZATION_ID), ilike(tags.name, 'figurinha')))
+    .limit(1)
+
+  if (!tag) {
+    [tag] = await db.insert(tags).values({
+      organizationId: ORGANIZATION_ID,
+      name: 'figurinha',
+      color: '#a855f7',
+    }).returning({ id: tags.id })
+  }
+
+  await db.insert(leadTags).values({ leadId, tagId: tag.id, organizationId: ORGANIZATION_ID }).onConflictDoNothing()
 }
 
 /**
@@ -298,6 +319,7 @@ export async function runFigurinhaFunnel(
       if ((block.config as any)?.trigger === trigger) {
         await startExecution(funnel.id, ORGANIZATION_ID, leadId, { telefone }, block.id)
         started = true
+        if (trigger === 'geracaowhatsapp') await ensureFigurinhaTag(leadId)
       }
     }
   }

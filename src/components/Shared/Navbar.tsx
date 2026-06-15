@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   // { label: 'Leads', href: '/leads', icon: Users }, // Temporariamente desativado
   { label: 'Funil de Mensagens', href: '/funnels', icon: FlowArrow },
   { label: 'Logs', href: '/logs', icon: ListBullets },
+  { label: 'Métricas', href: '/metrics', icon: ChartBar },
   { label: 'Configurações', href: '/settings/organization', icon: Gear },
 ]
 
@@ -96,6 +97,7 @@ export default function Navbar() {
       case 'Chat': return !!permissions.settings?.view_chat
       case 'Funil de Mensagens': return !!permissions.settings?.view_settings
       case 'Logs': return !!permissions.settings?.view_settings
+      case 'Métricas': return !!permissions.settings?.view_settings
       case 'Configurações': return !!permissions.settings?.view_settings
       default: return false
     }

@@ -11,7 +11,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth
 
   // Rotas públicas — acessar sem sessão
-  const publicPaths = ['/login', '/api/auth', '/api/webhooks']
+  const publicPaths = ['/login', '/api/auth', '/api/webhooks', '/api/funnels/tick']
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
   if (isPublic) return NextResponse.next()
