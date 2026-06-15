@@ -40,7 +40,7 @@ export function buildFigurinhaProntaMessage(telefone: string) {
  * figurinha: 1) procura uma mensagem inbound contendo o número; 2) procura
  * pelo telefone do lead; 3) cria um novo lead.
  */
-export async function findOrCreateLeadByFigurinhaPhone(telefone: string): Promise<{ id: string; phone: string | null; pedidoFigurinha: boolean }> {
+export async function findOrCreateLeadByFigurinhaPhone(telefone: string): Promise<{ id: string; phone: string | null }> {
   const [match] = await db.select({ leadId: leadActivities.leadId })
     .from(leadActivities)
     .where(and(
@@ -52,7 +52,6 @@ export async function findOrCreateLeadByFigurinhaPhone(telefone: string): Promis
     .limit(1)
 
   let leadId = match?.leadId
-  const pedidoFigurinha = !!match
 
   if (!leadId) {
     const [leadByPhone] = await db.select({ id: leads.id })
@@ -83,11 +82,11 @@ export async function findOrCreateLeadByFigurinhaPhone(telefone: string): Promis
       customAttributes: { source: 'geracaowhatsapp' },
     }).returning({ id: leads.id, phone: leads.phone })
 
-    return { id: newLead.id, phone: newLead.phone, pedidoFigurinha }
+    return { id: newLead.id, phone: newLead.phone }
   }
 
   const [lead] = await db.select({ id: leads.id, phone: leads.phone }).from(leads).where(eq(leads.id, leadId)).limit(1)
-  return { ...lead, pedidoFigurinha }
+  return lead
 }
 
 /**

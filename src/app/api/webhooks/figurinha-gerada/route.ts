@@ -40,12 +40,10 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: 'Campo "telefone" ausente ou inválido.' }, { status: 200 })
     }
 
-    // Envia a mensagem com o link da figurinha pronta (via funil ativo "geracaowhatsapp", se houver),
-    // apenas se o lead já tiver pedido a figurinha pelo WhatsApp (mensagem "Quero minha figurinha Nº#...").
-    // Sem isso, ignora o evento — não cria/avisa lead "do nada" sem conversa prévia.
+    // Envia a mensagem com o link da figurinha pronta (via funil ativo "geracaowhatsapp", se houver)
     const lead = await findOrCreateLeadByFigurinhaPhone(telefone)
 
-    if (lead?.phone && lead.pedidoFigurinha) {
+    if (lead?.phone) {
       await runFigurinhaFunnel('geracaowhatsapp', lead.id, telefone, () =>
         sendFigurinhaAutoMessage(lead.id, lead.phone!, buildFigurinhaProntaMessage(telefone), 'geracaowhatsapp')
       )
