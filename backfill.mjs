@@ -34,7 +34,7 @@ if (tagRows.length === 0) {
 // Aplica a tag a todos os leads com execução nesse funil
 const { rows: result } = await pool.query(`
   insert into lead_tags (lead_id, tag_id, organization_id)
-  select distinct fe.lead_id, $2, $1
+  select distinct fe.lead_id, $2::uuid, $1
   from funnel_executions fe
   where fe.funnel_id = $3
   on conflict do nothing
