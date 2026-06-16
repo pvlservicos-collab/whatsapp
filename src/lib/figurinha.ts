@@ -307,7 +307,7 @@ export async function runFigurinhaFunnel(
         eq(funnelExecutions.leadId, leadId),
         inArray(funnelExecutions.status, ['running', 'waiting', 'waiting_condition']),
       ))
-    if (activeExecutions.length >= 2) {
+    if (activeExecutions.length >= 1) {
       started = true
       continue
     }
