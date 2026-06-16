@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { buildFigurinhaProntaMessage, findOrCreateLeadByFigurinhaPhone, runFigurinhaFunnel, sendFigurinhaAutoMessage } from '@/lib/figurinha'
+import { findOrCreateLeadByFigurinhaPhone, runFigurinhaFunnel } from '@/lib/figurinha'
 
 /**
  * POST /api/webhooks/figurinha-gerada
@@ -40,13 +40,11 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: 'Campo "telefone" ausente ou inválido.' }, { status: 200 })
     }
 
-    // Envia a mensagem com o link da figurinha pronta (via funil ativo "geracaowhatsapp", se houver)
+    // Registra o lead mas não envia nenhuma mensagem (automação desligada)
     const lead = await findOrCreateLeadByFigurinhaPhone(telefone)
 
     if (lead?.phone) {
-      await runFigurinhaFunnel('geracaowhatsapp', lead.id, telefone, () =>
-        sendFigurinhaAutoMessage(lead.id, lead.phone!, buildFigurinhaProntaMessage(telefone), 'geracaowhatsapp')
-      )
+      await runFigurinhaFunnel('geracaowhatsapp', lead.id, telefone, async () => {})
     }
 
     return Response.json({ ok: true, leadId: lead.id })
