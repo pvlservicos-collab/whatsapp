@@ -105,7 +105,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, onArchive, tim
             {onArchive && (
                 <div
                     className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500 text-white"
-                    style={{ width: ARCHIVE_REVEAL_WIDTH }}
+                    style={{ width: ARCHIVE_REVEAL_WIDTH, opacity: Math.min(1, Math.abs(dragX) / ARCHIVE_TRIGGER_THRESHOLD) }}
                     aria-hidden="true"
                 >
                     <div className="flex flex-col items-center gap-0.5">
