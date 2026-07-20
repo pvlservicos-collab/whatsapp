@@ -317,7 +317,7 @@ export default function LeadDetailsSidebar({
     <>
     <div className="w-full md:w-72 border-l border-[var(--chat-border)] flex flex-col flex-shrink-0 overflow-y-auto bg-[var(--chat-bg-base)] chat-dark-scroll">
       {onClose && (
-        <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--chat-border)] flex-shrink-0 md:hidden">
+        <div className="app-safe-top flex items-center justify-between px-4 h-14 border-b border-[var(--chat-border)] flex-shrink-0 md:hidden">
           <span className="text-sm font-semibold text-[var(--chat-text-primary)]">Detalhes do contato</span>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-field)] transition-colors">
             <X size={20} />
