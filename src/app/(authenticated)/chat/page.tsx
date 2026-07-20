@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline, useIsMobile } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
@@ -31,6 +31,28 @@ export default function ChatPage() {
   const isMobile = useIsMobile()
   const [mobileView, setMobileView] = useState<'list' | 'conversation'>('list')
   const [showMobileDetails, setShowMobileDetails] = useState(false)
+
+  // Arrastar da borda esquerda da tela pra voltar pra lista (gesto nativo do
+  // iOS) — só reconhece o gesto se o toque comecar perto da borda, pra nao
+  // atrapalhar scroll/interacoes normais dentro da conversa.
+  const edgeSwipeStart = useRef<{ x: number; y: number } | null>(null)
+  const handleConversationTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0]
+    edgeSwipeStart.current = t.clientX <= 24 ? { x: t.clientX, y: t.clientY } : null
+  }, [])
+  const handleConversationTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!edgeSwipeStart.current) return
+    const t = e.touches[0]
+    const deltaX = t.clientX - edgeSwipeStart.current.x
+    const deltaY = t.clientY - edgeSwipeStart.current.y
+    if (deltaX > 70 && Math.abs(deltaY) < 50) {
+      edgeSwipeStart.current = null
+      setMobileView('list')
+    }
+  }, [])
+  const handleConversationTouchEnd = useCallback(() => {
+    edgeSwipeStart.current = null
+  }, [])
 
   const handleSelectLead = useCallback((lead: LeadWithOwner) => {
     setSelectedLead(lead)
@@ -254,7 +276,12 @@ export default function ChatPage() {
 
         {mobileView === 'conversation' && (
           displayedLead ? (
-            <div className="flex flex-col h-full min-h-0">
+            <div
+              className="flex flex-col h-full min-h-0"
+              onTouchStart={handleConversationTouchStart}
+              onTouchMove={handleConversationTouchMove}
+              onTouchEnd={handleConversationTouchEnd}
+            >
               <div className="flex items-center gap-3 h-14 px-2 border-b border-[var(--chat-border)] bg-[var(--chat-bg-field)] flex-shrink-0">
                 <button onClick={() => setMobileView('list')} className="w-9 h-9 flex items-center justify-center rounded-lg text-[var(--chat-text-primary)]" aria-label="Voltar">
                   <CaretLeft size={20} />
