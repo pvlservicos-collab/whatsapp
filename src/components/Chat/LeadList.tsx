@@ -215,17 +215,13 @@ export default function LeadList({
     }
   }, [contextMenu.lead, onUpdateLead])
 
-  const handleToggleArchive = useCallback(async () => {
-    if (!contextMenu.lead) return
-    const lead = contextMenu.lead
+  const archiveLead = useCallback(async (lead: LeadWithOwner) => {
     const newArchived = !lead.is_archived
 
     // Optimistic update
     if (onUpdateLead) {
       onUpdateLead(lead.id, { is_archived: newArchived })
     }
-
-    setContextMenu(prev => ({ ...prev, visible: false }))
 
     try {
       await fetch(`/api/leads/${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_archived: newArchived }) })
@@ -236,7 +232,20 @@ export default function LeadList({
         onUpdateLead(lead.id, { is_archived: !newArchived })
       }
     }
-  }, [contextMenu.lead, onUpdateLead])
+  }, [onUpdateLead])
+
+  const handleToggleArchive = useCallback(async () => {
+    if (!contextMenu.lead) return
+    const lead = contextMenu.lead
+    setContextMenu(prev => ({ ...prev, visible: false }))
+    await archiveLead(lead)
+  }, [contextMenu.lead, archiveLead])
+
+  // Arrastar o item pra esquerda arquiva na hora (padrão WhatsApp) — mesma
+  // ação do menu de contexto "Arquivar conversa", só que sem precisar abrir o menu.
+  const handleSwipeArchive = useCallback((lead: LeadWithOwner) => {
+    archiveLead(lead)
+  }, [archiveLead])
 
   if (loading) {
     return (
@@ -399,6 +408,7 @@ export default function LeadList({
                   timeStr={timeStr}
                   onClick={handleLeadClick}
                   onContextMenu={handleContextMenu}
+                  onArchive={handleSwipeArchive}
                   hit={hit}
                   query={search}
                   hideReplyHighlight={hideReplyHighlight}

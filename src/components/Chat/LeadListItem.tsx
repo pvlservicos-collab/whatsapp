@@ -1,8 +1,8 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useRef, useState } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { Robot, PushPin } from '@phosphor-icons/react'
+import { Robot, PushPin, Archive } from '@phosphor-icons/react'
 import { getInitials, formatPhone, renderSnippet } from '@/lib/utils'
 import IntegrationBadge from '@/components/Shared/IntegrationBadge'
 import LeadBadges from '@/components/Shared/LeadBadges'
@@ -13,6 +13,7 @@ interface LeadListItemProps {
     isSelected: boolean
     onClick: (lead: LeadWithOwner) => void
     onContextMenu: (e: React.MouseEvent, lead: LeadWithOwner) => void
+    onArchive?: (lead: LeadWithOwner) => void
     timeStr: string
     hit?: SearchHit
     query?: string
@@ -30,12 +31,58 @@ const PAYMENT_STATUS_TAGS: Record<string, { label: string; style: React.CSSPrope
     Object.entries(PAYMENT_STATUS_META).map(([value, meta]) => [value, { label: meta.label, style: TONE_STYLES[meta.tone] }])
 )
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, hideReplyHighlight }: LeadListItemProps) => {
+// Arrastar pra arquivar (padrão WhatsApp) — só dispara com arraste predominantemente
+// horizontal (senão atrapalharia o scroll vertical normal da lista) e só pra esquerda.
+const ARCHIVE_REVEAL_WIDTH = 76
+const ARCHIVE_TRIGGER_THRESHOLD = 56
+
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, onArchive, timeStr, hit, query, hideReplyHighlight }: LeadListItemProps) => {
     const defaultMsg = lead.last_activity_type ? 'Ver conversa' : 'Sem mensagens'
     const lastMsg = lead.last_message_content || defaultMsg
 
     const orderPaymentMethod = lead.custom_attributes?.last_order_payment_method as string | undefined
     const orderPaymentStatus = lead.custom_attributes?.last_order_payment_status as string | undefined
+
+    const [dragX, setDragX] = useState(0)
+    const [isDragging, setIsDragging] = useState(false)
+    const touchStart = useRef<{ x: number; y: number } | null>(null)
+    const axisLocked = useRef<'x' | 'y' | null>(null)
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (!onArchive) return
+        const t = e.touches[0]
+        touchStart.current = { x: t.clientX, y: t.clientY }
+        axisLocked.current = null
+    }
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!onArchive || !touchStart.current) return
+        const t = e.touches[0]
+        const deltaX = t.clientX - touchStart.current.x
+        const deltaY = t.clientY - touchStart.current.y
+
+        if (!axisLocked.current) {
+            if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return
+            axisLocked.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'x' : 'y'
+        }
+        if (axisLocked.current !== 'x') return
+
+        e.preventDefault()
+        setIsDragging(true)
+        // Só arrasta pra esquerda (arquivar) — direita sempre volta pro lugar.
+        setDragX(Math.max(-ARCHIVE_REVEAL_WIDTH - 24, Math.min(0, deltaX)))
+    }
+
+    const handleTouchEnd = () => {
+        if (!onArchive) return
+        setIsDragging(false)
+        if (dragX <= -ARCHIVE_TRIGGER_THRESHOLD) {
+            onArchive(lead)
+        }
+        setDragX(0)
+        touchStart.current = null
+        axisLocked.current = null
+    }
 
     let SenderIcon = null
     let iconColor = ''
@@ -54,15 +101,34 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             : undefined)
 
     return (
-        <div className="w-full flex-shrink-0 relative">
+        <div className="w-full flex-shrink-0 relative overflow-hidden">
+            {onArchive && (
+                <div
+                    className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500 text-white"
+                    style={{ width: ARCHIVE_REVEAL_WIDTH }}
+                    aria-hidden="true"
+                >
+                    <div className="flex flex-col items-center gap-0.5">
+                        <Archive size={20} weight="bold" />
+                        <span className="text-[10px] font-bold">{lead.is_archived ? 'Reabrir' : 'Arquivar'}</span>
+                    </div>
+                </div>
+            )}
             <button
-                onClick={() => onClick(lead)}
+                onClick={() => { if (Math.abs(dragX) < 4) onClick(lead) }}
                 onContextMenu={(e) => onContextMenu(e, lead)}
-                className={`w-full text-left px-4 py-3 border-b border-[var(--chat-bg-hover)] transition-colors ${isSelected
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className={`w-full text-left px-4 py-3 border-b border-[var(--chat-bg-hover)] relative bg-[var(--chat-bg-base)] ${isSelected
                     ? 'bg-[var(--chat-bg-hover)] border-l-[3px] border-l-[var(--chat-accent)]'
                     : 'hover:bg-[var(--chat-bg-panel)] border-l-[3px] border-l-transparent'
-                    }`}
-                style={unreadGradient ? { background: unreadGradient } : undefined}
+                    } ${isDragging ? '' : 'transition-transform duration-200 ease-out'}`}
+                style={{
+                    ...(unreadGradient ? { background: unreadGradient } : undefined),
+                    transform: `translateX(${dragX}px)`,
+                    touchAction: onArchive ? 'pan-y' : undefined,
+                }}
             >
                 <div className="flex items-center gap-3 w-full">
                     {/* Avatar */}
@@ -156,6 +222,7 @@ export default memo(LeadListItem, (prevProps, nextProps) => {
         prevProps.lead.id === nextProps.lead.id &&
         prevProps.lead.updated_at === nextProps.lead.updated_at &&
         prevProps.lead.is_unread === nextProps.lead.is_unread &&
+        prevProps.lead.is_archived === nextProps.lead.is_archived &&
         prevProps.lead.last_message_sender_type === nextProps.lead.last_message_sender_type &&
         prevProps.lead.integration_id === nextProps.lead.integration_id &&
         prevProps.lead.integration?.type === nextProps.lead.integration?.type &&
