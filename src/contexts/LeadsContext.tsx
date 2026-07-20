@@ -17,6 +17,7 @@ interface LeadsContextType {
   error: string | null
   stageStats: Record<string, StageStats>
   moveLeadToStage: (leadId: string, newStageId: string, oldStageId?: string, memberId?: string) => Promise<void>
+  refetch: () => Promise<void>
 }
 
 const LeadsContext = createContext<LeadsContextType | undefined>(undefined)
@@ -100,8 +101,13 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     []
   )
 
+  // Puxar pra atualizar (pull-to-refresh) no celular chama isso — sem
+  // showLoading pra nao esconder a lista inteira atras de um spinner de tela
+  // cheia, so o indicador de puxar mesmo.
+  const refetch = useCallback(() => fetchLeads(false), [organizationId, currentOrganization?.id])
+
   return (
-    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage }}>
+    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage, refetch }}>
       {children}
     </LeadsContext.Provider>
   )

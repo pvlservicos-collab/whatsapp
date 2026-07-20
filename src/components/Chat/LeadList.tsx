@@ -10,6 +10,7 @@ import { useTags } from '@/hooks'
 import { getLeadChannel } from '@/lib/leadChannel'
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab } from './ChatFilterTabs'
+import { useLeadsContext } from '@/contexts/LeadsContext'
 
 interface LeadListProps {
   leads: LeadWithOwner[]
@@ -116,6 +117,41 @@ export default function LeadList({
   }, [])
   const menuRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Puxar pra atualizar (pull-to-refresh) — so ativa quando a lista ja esta
+  // no topo, senao atrapalharia o scroll normal pra cima.
+  const { refetch } = useLeadsContext()
+  const [pullDistance, setPullDistance] = useState(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const pullStart = useRef<number | null>(null)
+  const PULL_TRIGGER_THRESHOLD = 64
+  const PULL_MAX = 100
+
+  const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
+    if (isRefreshing) return
+    pullStart.current = scrollContainerRef.current?.scrollTop === 0 ? e.touches[0].clientY : null
+  }, [isRefreshing])
+
+  const handlePullTouchMove = useCallback((e: React.TouchEvent) => {
+    if (pullStart.current === null) return
+    const delta = e.touches[0].clientY - pullStart.current
+    if (delta <= 0) { setPullDistance(0); return }
+    if ((scrollContainerRef.current?.scrollTop ?? 0) > 0) { pullStart.current = null; setPullDistance(0); return }
+    e.preventDefault()
+    setPullDistance(Math.min(PULL_MAX, delta * 0.5))
+  }, [])
+
+  const handlePullTouchEnd = useCallback(async () => {
+    if (pullStart.current === null) return
+    pullStart.current = null
+    if (pullDistance >= PULL_TRIGGER_THRESHOLD) {
+      setIsRefreshing(true)
+      setPullDistance(48)
+      await refetch()
+      setIsRefreshing(false)
+    }
+    setPullDistance(0)
+  }, [pullDistance, refetch])
 
   const INITIAL_DISPLAY = 20
   const DISPLAY_INCREMENT = 15
@@ -387,7 +423,22 @@ export default function LeadList({
       <ChatFilterTabs activeTab={activeTab} onChange={setActiveTab} counts={tabCounts} />
 
       {/* Leads List */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll relative"
+        onTouchStart={handlePullTouchStart}
+        onTouchMove={handlePullTouchMove}
+        onTouchEnd={handlePullTouchEnd}
+      >
+        <div
+          className="flex items-center justify-center overflow-hidden transition-[height] duration-200"
+          style={{ height: pullDistance }}
+        >
+          <div
+            className={`w-6 h-6 border-2 border-[var(--chat-accent)] border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`}
+            style={!isRefreshing ? { transform: `rotate(${pullDistance * 3.6}deg)` } : undefined}
+          />
+        </div>
         {tabFilteredHits.length === 0 ? (
           <div className="flex items-center justify-center h-full text-[var(--chat-text-muted)] text-sm">
             {searching ? 'Buscando…' : 'Nenhum lead encontrado'}
