@@ -38,6 +38,7 @@ import CustomFieldSelect from '@/components/Shared/CustomFieldSelect'
 import CustomFieldMultiSelect from '@/components/Shared/CustomFieldMultiSelect'
 import OrderModal from './OrderModal'
 import LeadOrderCard from './LeadOrderCard'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface LeadDetailsSidebarProps {
   lead: LeadWithOwner
@@ -319,9 +320,7 @@ export default function LeadDetailsSidebar({
       {onClose && (
         <div className="app-safe-top flex items-center justify-between px-4 h-14 border-b border-[var(--chat-border)] flex-shrink-0 md:hidden">
           <span className="text-sm font-semibold text-[var(--chat-text-primary)]">Detalhes do contato</span>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-field)] transition-colors">
-            <X size={20} />
-          </button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="chat" />
         </div>
       )}
       <div className="p-5 space-y-5">

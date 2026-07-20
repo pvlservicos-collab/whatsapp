@@ -26,6 +26,7 @@ import LeadCard from './LeadCard'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { LeadDetailsSidebar } from '@/components/Chat'
 import { X } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface PipelineBoardProps {
   organizationId: string
@@ -478,9 +479,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
                 <h2 className="text-base font-bold text-gray-900">Mover lead</h2>
                 <p className="text-xs text-gray-500 mt-0.5 truncate">{movingLead.title}</p>
               </div>
-              <button onClick={() => setMovingLead(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={20} />
-              </button>
+              <HeaderBackButton onClick={() => setMovingLead(null)} icon="close" variant="light" />
             </div>
             <div className="p-2 max-h-[60vh] overflow-y-auto">
               {stages.map(stage => (

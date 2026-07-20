@@ -10,6 +10,7 @@ import { getInitials } from '@/lib/utils'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { CaretLeft, Info } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 export default function ChatPage() {
   const { organizationId, loading, permissions, isMaster, roleName, currentOrganization, user, profileName } = useAuth()
@@ -283,9 +284,7 @@ export default function ChatPage() {
               onTouchEnd={handleConversationTouchEnd}
             >
               <div className="flex items-center gap-3 h-14 px-2 border-b border-[var(--chat-border)] bg-[var(--chat-bg-field)] flex-shrink-0">
-                <button onClick={() => setMobileView('list')} className="w-9 h-9 flex items-center justify-center rounded-lg text-[var(--chat-text-primary)]" aria-label="Voltar">
-                  <CaretLeft size={20} />
-                </button>
+                <HeaderBackButton onClick={() => setMobileView('list')} icon="back" variant="chat" label="Voltar" />
                 <div className="w-8 h-8 rounded-full bg-[var(--chat-bg-hover)] flex items-center justify-center overflow-hidden flex-shrink-0">
                   {displayedLead.avatar_url ? (
                     <img src={displayedLead.avatar_url} alt={displayedLead.title} className="w-full h-full object-cover" />

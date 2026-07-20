@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, Minus, MapPin, Check, Calendar } from '@phosphor-icons/react'
 import { PAYMENT_METHOD_META, PAYMENT_STATUS_META, DELIVERY_STATUS_META } from '@/lib/orderStatus'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Product {
   id: string
@@ -171,7 +172,7 @@ export default function NovoPedidoModal({ onClose, onSuccess }: NovoPedidoModalP
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">Novo pedido</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="light" />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">

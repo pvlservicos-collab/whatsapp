@@ -7,6 +7,7 @@ import { CaretLeft } from '@phosphor-icons/react'
 import SettingsSidebar from './SettingsSidebar'
 import SettingsAccessGuard from '@/components/Settings/SettingsAccessGuard'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 export default function SettingsLayoutWrapper({
     children,
@@ -59,8 +60,10 @@ export default function SettingsLayoutWrapper({
             <SettingsAccessGuard>
                 <div className="bg-gray-50 min-h-[calc(100dvh-3.5rem)]">
                     <div className="sticky top-14 z-10 bg-white border-b border-gray-200 px-4 h-12 flex items-center">
-                        <Link href="/settings" className="flex items-center gap-1.5 text-sm font-medium text-gray-600">
-                            <CaretLeft size={16} weight="bold" />
+                        <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                            <span className="w-11 h-11 min-w-11 min-h-11 -ml-2 flex items-center justify-center rounded-full bg-black/[0.06] hover:bg-black/10 active:bg-black/[0.14] transition-colors">
+                                <CaretLeft size={22} weight="bold" />
+                            </span>
                             Configurações
                         </Link>
                     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { CustomFieldCategory, CustomFieldDefinition } from '@/lib/types'
 import { X, Plus, Trash, CaretDown, Check } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Option {
     value: string
@@ -188,12 +189,7 @@ export function CustomFieldModal({ isOpen, onClose, field, categories, onSubmit,
                     <h2 className="text-lg font-bold font-display text-gray-900">
                         {field ? 'Editar Campo' : 'Novo Campo'}
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                    >
-                        <X size={20} weight="bold" />
-                    </button>
+                    <HeaderBackButton onClick={onClose} icon="close" variant="light" />
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">

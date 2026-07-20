@@ -6,6 +6,7 @@ import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import { useAuth } from '@/hooks'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface ActivityTimelineProps {
   activities: LeadActivityWithActor[]
@@ -912,13 +913,13 @@ export default function ActivityTimeline({
           className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
           onClick={() => setSelectedImage(null)}
         >
-          <button
-            className="absolute top-6 right-6 text-white bg-black/50 hover:bg-black/80 transition flex items-center justify-center w-10 h-10 rounded-full shadow-lg border border-white/10"
+          <HeaderBackButton
             onClick={() => setSelectedImage(null)}
-            title="Fechar (Esc)"
-          >
-            <X size={20} weight="bold" />
-          </button>
+            icon="close"
+            variant="dark"
+            label="Fechar (Esc)"
+            className="absolute top-6 right-6"
+          />
           <img
             src={selectedImage}
             alt="Mídia Expandida"

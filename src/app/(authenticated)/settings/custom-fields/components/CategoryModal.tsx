@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CustomFieldCategory } from '@/lib/types'
 import { X } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface CategoryModalProps {
     isOpen: boolean
@@ -61,12 +62,7 @@ export function CategoryModal({ isOpen, onClose, category, onSubmit, onDelete }:
                     <h2 className="text-lg font-bold font-display text-gray-900">
                         {category ? 'Editar Categoria' : 'Nova Categoria'}
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                    >
-                        <X size={20} weight="bold" />
-                    </button>
+                    <HeaderBackButton onClick={onClose} icon="close" variant="light" />
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">

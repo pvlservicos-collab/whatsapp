@@ -7,6 +7,7 @@ import {
   WarningCircle, CaretRight, Package, Plus, X, Check, Motorcycle,
 } from '@phosphor-icons/react'
 import { EXPENSE_CATEGORY_LABELS, EXPENSE_CATEGORY_OPTIONS } from '@/lib/expense-categories'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 type Period = 'day' | 'week' | 'month'
 
@@ -256,9 +257,7 @@ function QuickExpenseModal({ onClose, onSaved }: { onClose: () => void; onSaved:
 
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Registrar gasto de hoje</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={20} />
-          </button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="light" />
         </div>
         <div className="p-5 space-y-4">
           <div>

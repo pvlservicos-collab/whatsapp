@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, SpinnerGap, Trash } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface MemberModalProps {
   organizationId: string
@@ -93,7 +94,7 @@ export default function MemberModal({ organizationId, member, onClose }: MemberM
 
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h2 className="text-lg font-bold text-gray-900">{isEditing ? 'Editar Membro' : 'Novo Membro'}</h2>
-            <button onClick={() => onClose()} className="text-gray-400 hover:text-gray-600 transition-colors p-1"><X className="w-5 h-5" /></button>
+            <HeaderBackButton onClick={() => onClose()} icon="close" variant="light" />
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">{error}</div>}

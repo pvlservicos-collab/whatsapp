@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Package, Plus, PencilSimple, Trash, X, Check, ToggleLeft, ToggleRight } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Product {
   id: string
@@ -250,9 +251,7 @@ export default function ProductsSettingsPage() {
               <h2 className="text-base font-bold text-gray-900">
                 {editingProduct ? 'Editar produto' : 'Novo produto'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={20} />
-              </button>
+              <HeaderBackButton onClick={() => setShowModal(false)} icon="close" variant="light" />
             </div>
 
             <div className="p-5 space-y-4">

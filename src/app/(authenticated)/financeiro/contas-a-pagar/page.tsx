@@ -6,6 +6,7 @@ import {
   Clock, WarningCircle, ArrowsClockwise, ArrowCounterClockwise,
 } from '@phosphor-icons/react'
 import { EXPENSE_CATEGORY_OPTIONS, EXPENSE_CATEGORY_LABELS } from '@/lib/expense-categories'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Expense {
   id: string
@@ -397,9 +398,7 @@ export default function ContasAPagarPage() {
               <h2 className="text-base font-bold text-gray-900">
                 {editing ? 'Editar despesa' : 'Nova despesa'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={20} />
-              </button>
+              <HeaderBackButton onClick={() => setShowModal(false)} icon="close" variant="light" />
             </div>
 
             <div className="p-5 space-y-4">

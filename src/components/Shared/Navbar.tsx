@@ -29,6 +29,7 @@ import FilterButton from '@/components/Shared/FilterButton'
 import GlobalSearch from '@/components/Shared/GlobalSearch'
 import NotificationDropdown from '@/components/Shared/NotificationDropdown'
 import { usePipelineFilters } from '@/contexts/FilterContext'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 const NAV_ITEMS = [
   { label: 'Pipeline', href: '/pipeline', icon: Kanban },
@@ -292,13 +293,7 @@ export default function Navbar() {
               <img src="/logos/Atlas.svg" alt="Atlas Eye Logo" className="h-6 w-auto object-contain" />
               <span className="font-display font-bold text-gray-900 dark:text-[#e6edf3]">Atlas Eye</span>
             </Link>
-            <button
-              onClick={() => setShowMobileMenu(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-[#21262d] transition-colors"
-              aria-label="Fechar menu"
-            >
-              <X size={20} />
-            </button>
+            <HeaderBackButton onClick={() => setShowMobileMenu(false)} icon="close" variant="light" label="Fechar menu" />
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {NAV_ITEMS.filter(item => isItemVisible(item.label)).map(item => {

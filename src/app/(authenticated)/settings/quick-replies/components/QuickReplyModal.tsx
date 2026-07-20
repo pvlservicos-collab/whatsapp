@@ -5,6 +5,7 @@ import { X, Image as ImageIcon, VideoCamera, FileAudio, FileText, Trash, Plus, A
 import { QuickReply, QuickReplyInput, QuickReplyStepInput } from '@/hooks/useQuickReplies'
 import { QUICK_REPLY_VARIABLES, interpolateQuickReply } from '@/lib/quickReplyVariables'
 import { uploadClientFile } from '@/lib/blobClient'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface QuickReplyModalProps {
   scope: 'shared' | 'personal'
@@ -356,9 +357,7 @@ export default function QuickReplyModal({ scope, quickReply, existingCategories,
           <h3 className="text-lg font-bold text-gray-900">
             {isEditing ? 'Editar resposta rápida' : scope === 'shared' ? 'Nova resposta compartilhada' : 'Novo atalho pessoal'}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="light" />
         </div>
 
         <div className="p-6 space-y-4">

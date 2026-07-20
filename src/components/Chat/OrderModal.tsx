@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import ReactDOM from 'react-dom'
 import { X, Plus, Minus, MapPin, Check, Copy, ClipboardText, CaretDown, CaretUp, MagicWand } from '@phosphor-icons/react'
 import { LeadWithOwner } from '@/lib/types'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Product {
   id: string
@@ -301,7 +302,7 @@ export default function OrderModal({ lead, organizationId, onClose, onSuccess }:
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--chat-border)]">
           <h2 className="text-lg font-bold text-[var(--chat-text-primary)]">Registrar Venda</h2>
-          <button onClick={onClose} className="text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] transition-colors"><X size={20} /></button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="dark" />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5 chat-dark-scroll">
