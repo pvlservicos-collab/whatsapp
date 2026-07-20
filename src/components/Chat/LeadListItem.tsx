@@ -181,33 +181,40 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, onArchive, tim
                             </div>
                         )}
 
-                        {/* Order status tags + lead tags — badges de grupo/canal já saíram daqui, ficam do lado do nome */}
+                        {/* Order status tags + lead tags — badges de grupo/canal já saíram daqui, ficam do lado do nome.
+                            Opacidade reduzida e no máximo 2 etiquetas visíveis (+N pro resto): no WhatsApp o nome e a
+                            última mensagem são sempre o que mais chama atenção, as etiquetas ficam em segundo plano. */}
                         {(orderPaymentMethod || (lead.lead_tags && lead.lead_tags.length > 0)) && (
-                            <div className="flex flex-wrap gap-1 mt-1.5 items-center">
+                            <div className="flex flex-wrap gap-1 mt-1.5 items-center opacity-80">
                                 {orderPaymentMethod && PAYMENT_METHOD_TAGS[orderPaymentMethod] && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_METHOD_TAGS[orderPaymentMethod].style}>
+                                    <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_METHOD_TAGS[orderPaymentMethod].style}>
                                         {PAYMENT_METHOD_TAGS[orderPaymentMethod].label}
                                     </span>
                                 )}
                                 {orderPaymentStatus && PAYMENT_STATUS_TAGS[orderPaymentStatus] && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_STATUS_TAGS[orderPaymentStatus].style}>
+                                    <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_STATUS_TAGS[orderPaymentStatus].style}>
                                         {PAYMENT_STATUS_TAGS[orderPaymentStatus].label}
                                     </span>
                                 )}
-                                {lead.lead_tags && lead.lead_tags.map((lt: any) => {
+                                {lead.lead_tags && lead.lead_tags.slice(0, 2).map((lt: any) => {
                                     const tag = lt.tag
                                     if (!tag) return null
                                     const isHex = tag.color?.startsWith('#')
                                     return (
                                         <span
                                             key={lt.tag_id}
-                                            className={`text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-1 ${!isHex ? tag.color : ''}`}
+                                            className={`text-[9px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-1 ${!isHex ? tag.color : ''}`}
                                             style={isHex ? { backgroundColor: tag.color + '1A', color: tag.color } : {}}
                                         >
                                             {tag.name}
                                         </span>
                                     )
                                 })}
+                                {lead.lead_tags && lead.lead_tags.length > 2 && (
+                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-[var(--chat-text-tertiary)] bg-[var(--chat-bg-hover)] flex-shrink-0">
+                                        +{lead.lead_tags.length - 2}
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>
