@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(echo \"# whatsapp\")",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(p.dependencies['@xyflow/react']\\)\")"
+    ]
+  }
+}

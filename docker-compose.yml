@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  app:
+    image: nginx:alpine
+    volumes:
+      - /home/admin/naturabelas/nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - folem
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.naturabelas.rule=Host(`naturabelas.folemmidia.com`) || Host(`147.93.9.174.sslip.io`)"
+        - "traefik.http.routers.naturabelas.entrypoints=websecure"
+        - "traefik.http.routers.naturabelas.tls=true"
+        - "traefik.http.routers.naturabelas.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.naturabelas.loadbalancer.server.port=80"
+networks:
+  folem:
+    external: true
