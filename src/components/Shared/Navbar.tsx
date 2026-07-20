@@ -48,6 +48,12 @@ const MOBILE_TAB_LABELS = ['Chat', 'Pipeline', 'Logística', 'Financeiro']
 
 export default function Navbar() {
   const pathname = usePathname()
+
+  // Título da tela no celular — preenche o espaço que sobrou sem a logo, igual
+  // o WhatsApp faz ("Conversas", "Chamadas"...) em vez de deixar vazio.
+  const mobilePageTitle = pathname === '/'
+    ? 'Início'
+    : NAV_ITEMS.find(item => pathname.startsWith(item.href))?.label || ''
   const router = useRouter()
   const { organizationId, permissions, isMaster, roleName, user, profileName, loading: authLoading } = useAuth()
   const { isDark, toggleTheme } = useTheme()
@@ -122,14 +128,15 @@ export default function Navbar() {
 
   return (
     <>
-    <nav className="app-safe-top dark-nav bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-[#30363d] px-4 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-50">
+    <nav className="app-safe-top dark-nav bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-[#30363d] px-4 sm:px-6 min-h-14 flex items-center justify-between sticky top-0 z-50">
       {/* Left: Logo + Nav */}
       <div className="flex items-center gap-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="hidden md:flex items-center gap-2">
           <img src="/logos/Atlas.svg" alt="Atlas Eye Logo" className="h-6 w-auto object-contain" />
           <span className="font-display font-bold text-gray-900 dark:text-[#e6edf3] hidden sm:inline">Atlas Eye</span>
         </Link>
+        <span className="md:hidden text-base font-bold text-gray-900 dark:text-[#e6edf3] truncate">{mobilePageTitle}</span>
 
         {/* Nav Tabs (desktop) */}
         <div className="hidden md:flex items-center gap-1">
@@ -223,7 +230,7 @@ export default function Navbar() {
         <button
           onClick={toggleTheme}
           title={isDark ? 'Modo claro' : 'Modo escuro'}
-          className="app-tap-target w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 dark:text-[#8b949e] hover:bg-gray-100 dark:hover:bg-[#21262d] transition-colors"
+          className="app-tap-target hidden md:flex w-11 h-11 items-center justify-center rounded-lg text-gray-500 dark:text-[#8b949e] hover:bg-gray-100 dark:hover:bg-[#21262d] transition-colors"
         >
           {isDark ? <Sun size={18} weight="fill" className="text-yellow-400" /> : <Moon size={18} />}
         </button>
@@ -288,7 +295,7 @@ export default function Navbar() {
           onClick={() => setShowMobileMenu(false)}
         />
         <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white dark:bg-[#161b22] shadow-xl flex flex-col">
-          <div className="app-safe-top flex items-center justify-between h-14 px-4 border-b border-gray-100 dark:border-[#30363d]">
+          <div className="app-safe-top flex items-center justify-between min-h-14 px-4 py-2 border-b border-gray-100 dark:border-[#30363d]">
             <Link href="/" className="flex items-center gap-2" onClick={() => setShowMobileMenu(false)}>
               <img src="/logos/Atlas.svg" alt="Atlas Eye Logo" className="h-6 w-auto object-contain" />
               <span className="font-display font-bold text-gray-900 dark:text-[#e6edf3]">Atlas Eye</span>
@@ -314,6 +321,16 @@ export default function Navbar() {
                 </Link>
               )
             })}
+
+            <div className="my-2 border-t border-gray-100 dark:border-[#30363d]" />
+
+            <button
+              onClick={() => { toggleTheme(); setShowMobileMenu(false) }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-[#adbac7] hover:bg-gray-100 dark:hover:bg-[#21262d] transition-colors"
+            >
+              {isDark ? <Sun size={18} weight="fill" className="text-yellow-400" /> : <Moon size={18} />}
+              {isDark ? 'Modo claro' : 'Modo escuro'}
+            </button>
           </div>
         </div>
       </div>
