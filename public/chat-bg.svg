@@ -1,11 +1,42 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
- "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
-<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
- width="640.000000pt" height="940.000000pt" viewBox="0 0 640.000000 940.000000"
- preserveAspectRatio="xMidYMid meet">
-
-<g transform="translate(0.000000,940.000000) scale(0.100000,-0.100000)"
-fill="#000000" stroke="none">
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <g fill="none" stroke="#7a6a58" stroke-width="1.4" opacity="0.06" stroke-linecap="round" stroke-linejoin="round">
+    <!-- leaf/flower motif -->
+    <g transform="translate(30,30)">
+      <path d="M0 14 C -6 6, -6 -6, 0 -14 C 6 -6, 6 6, 0 14 Z"/>
+      <path d="M0 14 C -6 6, -6 -6, 0 -14 C 6 -6, 6 6, 0 14 Z" transform="rotate(90)"/>
+      <circle r="3"/>
+    </g>
+    <!-- swirl -->
+    <g transform="translate(140,50)">
+      <path d="M-10 0 A10 10 0 1 1 10 0 A6 6 0 1 1 -2 0 A3 3 0 1 1 4 0"/>
+    </g>
+    <!-- small diamond cluster -->
+    <g transform="translate(60,110)">
+      <rect x="-4" y="-4" width="8" height="8" transform="rotate(45)"/>
+      <rect x="10" y="-4" width="6" height="6" transform="rotate(45 10 -4)"/>
+    </g>
+    <!-- leaf branch -->
+    <g transform="translate(180,140) rotate(20)">
+      <path d="M0 -18 L0 18"/>
+      <path d="M0 -10 C 6 -14, 10 -10, 8 -4 C 4 -6, 0 -8, 0 -10 Z"/>
+      <path d="M0 0 C -6 -4, -10 0, -8 6 C -4 4, 0 2, 0 0 Z"/>
+      <path d="M0 10 C 6 6, 10 10, 8 16 C 4 14, 0 12, 0 10 Z"/>
+    </g>
+    <!-- dotted arc -->
+    <g transform="translate(40,180)">
+      <path d="M-14 0 A14 14 0 0 1 14 0" stroke-dasharray="1.6 5"/>
+    </g>
+    <!-- small flower -->
+    <g transform="translate(200,20)">
+      <circle r="2.4"/>
+      <circle cx="6" cy="0" r="2.4"/>
+      <circle cx="-6" cy="0" r="2.4"/>
+      <circle cx="0" cy="6" r="2.4"/>
+      <circle cx="0" cy="-6" r="2.4"/>
+    </g>
+    <!-- paisley-ish curl -->
+    <g transform="translate(110,200)">
+      <path d="M-12 8 C -16 -4, -4 -12, 6 -6 C 12 -2, 10 6, 2 6 C -2 6, -4 2, 0 0"/>
+    </g>
+  </g>
 </svg>

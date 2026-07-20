@@ -67,8 +67,8 @@
   --chat-text-muted: #667781;
   --chat-text-tertiary: #8696a0;
   --chat-icon: #54656f;
-  --chat-accent: #53bdeb;
-  --chat-accent-hover: #1a91c9;
+  --chat-accent: #00a884;
+  --chat-accent-hover: #008f6f;
   --chat-bg-field-evolution: #f3f0fd;
   --chat-border-evolution: rgba(139, 92, 246, 0.25);
 }
@@ -85,8 +85,8 @@
   --chat-text-muted: #8696a0;
   --chat-text-tertiary: #667781;
   --chat-icon: #aebac1;
-  --chat-accent: #53bdeb;
-  --chat-accent-hover: #7cd0f5;
+  --chat-accent: #00a884;
+  --chat-accent-hover: #06cf9c;
   --chat-bg-field-evolution: #1e1a2e;
   --chat-border-evolution: rgba(139, 92, 246, 0.2);
 }

@@ -173,12 +173,12 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
           {senderAvatar ? (
             <img src={senderAvatar} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-blue-100' : 'bg-[var(--chat-bg-hover)]'}`}>
+            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-green-100' : 'bg-[var(--chat-bg-hover)]'}`}>
               <span className={`text-[10px] font-bold ${isOutgoing ? 'text-blue-500' : 'text-[var(--chat-text-muted)]'}`}>👤</span>
             </div>
           )}
         </div>
-        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? '#21BCED' : 'var(--chat-bg-hover)' }}>
+        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? '#00A884' : 'var(--chat-bg-hover)' }}>
           <Microphone size={12} weight="fill" className={isOutgoing ? "text-white" : "text-[var(--chat-accent)]"} />
         </div>
       </div>
@@ -372,8 +372,8 @@ const MessageBubble = memo(function MessageBubble({
   if (outgoing) {
     const isAI = senderType === 'ai'
     const isAutomated = senderType === 'automated'
-    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : isAutomated ? 'rgba(34, 197, 94, 0.85)' : 'rgba(33, 188, 237, 0.85)'
-    const labelColor = isAI ? '#4B3BFD' : isAutomated ? '#16A34A' : '#21BCED'
+    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : isAutomated ? 'rgba(217, 119, 6, 0.85)' : 'rgba(0, 168, 132, 0.9)'
+    const labelColor = isAI ? '#4B3BFD' : isAutomated ? '#D97706' : '#00A884'
     const label = isAI ? 'Atlas AI' : isAutomated ? 'Automático' : 'Você'
 
     return (
@@ -393,14 +393,14 @@ const MessageBubble = memo(function MessageBubble({
             ) : isAutomated ? (
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#16A34A' }}
+                style={{ backgroundColor: '#D97706' }}
               >
                 <Lightning size={12} weight="fill" className="text-white" />
               </div>
             ) : (
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden"
-                style={{ backgroundColor: '#21BCED' }}
+                style={{ backgroundColor: '#00A884' }}
               >
                 {activity.actor?.profiles?.avatar_url ? (
                   <img src={activity.actor.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
