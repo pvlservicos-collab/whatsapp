@@ -169,6 +169,21 @@
   animation: modalContentIn 0.2s ease-out;
 }
 
+/* Bottom sheet no celular (padrao WhatsApp/apps nativos - acao sempre ao alcance
+   do polegar), modal flutuante centralizado igual antes a partir do md. */
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheet-enter {
+  animation: modalContentIn 0.2s ease-out;
+}
+@media (max-width: 767px) {
+  .sheet-enter {
+    animation: sheetSlideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
 /* Hide scrollbar but keep scroll functionality */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE/Edge */

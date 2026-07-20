@@ -343,11 +343,15 @@ export default function QuickReplyModal({ scope, quickReply, existingCategories,
   })
 
   return (
-    <div className="app-safe-top fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="app-safe-top fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
       <div
-        className={`bg-white rounded-2xl shadow-xl w-full ${mode === 'sequence' ? 'max-w-2xl' : 'max-w-lg'} max-h-[90dvh] overflow-y-auto transition-[max-width]`}
+        className={`app-safe-bottom sheet-enter bg-white rounded-t-2xl md:rounded-2xl shadow-xl w-full ${mode === 'sequence' ? 'max-w-2xl' : 'max-w-lg'} max-h-[85dvh] md:max-h-[90dvh] overflow-y-auto transition-[max-width]`}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">
             {isEditing ? 'Editar resposta rápida' : scope === 'shared' ? 'Nova resposta compartilhada' : 'Novo atalho pessoal'}

@@ -248,8 +248,12 @@ function QuickExpenseModal({ onClose, onSaved }: { onClose: () => void; onSaved:
   }
 
   return (
-    <div className="app-safe-top fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-gray-100">
+    <div className="app-safe-top fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="app-safe-bottom sheet-enter bg-white rounded-t-2xl md:rounded-2xl w-full max-w-sm shadow-2xl border border-gray-100">
+        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Registrar gasto de hoje</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">

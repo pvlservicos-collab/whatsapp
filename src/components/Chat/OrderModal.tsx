@@ -292,8 +292,12 @@ export default function OrderModal({ lead, organizationId, onClose, onSuccess }:
   }
 
   const modal = (
-    <div className="app-safe-top fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-      <div className="bg-[#1a2730] border border-[var(--chat-border)] rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col shadow-2xl">
+    <div className="app-safe-top fixed inset-0 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+      <div className="app-safe-bottom sheet-enter bg-[#1a2730] border border-[var(--chat-border)] rounded-t-2xl md:rounded-2xl w-full max-w-2xl max-h-[85dvh] md:max-h-[90dvh] flex flex-col shadow-2xl">
+        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--chat-border)]">
           <h2 className="text-lg font-bold text-[var(--chat-text-primary)]">Registrar Venda</h2>

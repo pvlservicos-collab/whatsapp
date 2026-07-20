@@ -178,8 +178,12 @@ export function CustomFieldModal({ isOpen, onClose, field, categories, onSubmit,
     }
 
     return (
-        <div className="app-safe-top fixed inset-0 z-[100] flex items-center justify-center bg-black/50 modal-overlay-enter p-4">
-            <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] modal-content-enter">
+        <div className="app-safe-top fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/50 modal-overlay-enter p-0 md:p-4">
+            <div className="app-safe-bottom bg-white rounded-t-2xl md:rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] md:max-h-[90vh] sheet-enter">
+        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <h2 className="text-lg font-bold font-display text-gray-900">
                         {field ? 'Editar Campo' : 'Novo Campo'}
