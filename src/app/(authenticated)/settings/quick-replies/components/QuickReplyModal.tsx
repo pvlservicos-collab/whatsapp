@@ -343,7 +343,7 @@ export default function QuickReplyModal({ scope, quickReply, existingCategories,
   })
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="app-safe-top fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className={`bg-white rounded-2xl shadow-xl w-full ${mode === 'sequence' ? 'max-w-2xl' : 'max-w-lg'} max-h-[90dvh] overflow-y-auto transition-[max-width]`}
         onClick={(e) => e.stopPropagation()}

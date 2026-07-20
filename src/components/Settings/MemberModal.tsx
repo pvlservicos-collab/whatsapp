@@ -83,7 +83,7 @@ export default function MemberModal({ organizationId, member, onClose }: MemberM
   if (!mounted) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[100]">
+    <div className="app-safe-top fixed inset-0 z-[100]">
       <div className="absolute inset-0 bg-black/50 modal-overlay-enter" onClick={() => onClose()} />
       <div className="flex items-center justify-center min-h-screen p-4 pointer-events-none">
         <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden modal-content-enter pointer-events-auto relative z-10">

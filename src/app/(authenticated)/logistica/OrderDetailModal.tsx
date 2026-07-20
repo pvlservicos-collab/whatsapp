@@ -223,7 +223,7 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onUpdat
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div className="app-safe-top fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
       <div className="bg-white border border-gray-100 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div>

@@ -287,7 +287,7 @@ export default function Navbar() {
           onClick={() => setShowMobileMenu(false)}
         />
         <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white dark:bg-[#161b22] shadow-xl flex flex-col">
-          <div className="flex items-center justify-between h-14 px-4 border-b border-gray-100 dark:border-[#30363d]">
+          <div className="app-safe-top flex items-center justify-between h-14 px-4 border-b border-gray-100 dark:border-[#30363d]">
             <Link href="/" className="flex items-center gap-2" onClick={() => setShowMobileMenu(false)}>
               <img src="/logos/Atlas.svg" alt="Atlas Eye Logo" className="h-6 w-auto object-contain" />
               <span className="font-display font-bold text-gray-900 dark:text-[#e6edf3]">Atlas Eye</span>

@@ -468,7 +468,7 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
       {/* Mobile: "mover para" — alternativa ao arrastar entre etapas */}
       {movingLead && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="app-safe-top fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-gray-100">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>

@@ -178,7 +178,7 @@ export function CustomFieldModal({ isOpen, onClose, field, categories, onSubmit,
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 modal-overlay-enter p-4">
+        <div className="app-safe-top fixed inset-0 z-[100] flex items-center justify-center bg-black/50 modal-overlay-enter p-4">
             <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] modal-content-enter">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <h2 className="text-lg font-bold font-display text-gray-900">
