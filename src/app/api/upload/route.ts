@@ -7,7 +7,12 @@ import { randomBytes } from 'crypto'
 const FOLDER_LIMITS: Record<string, { maxSize: number; allowedTypes?: string[] }> = {
   avatars:    { maxSize: 5 * 1024 * 1024, allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
   'org-logos':{ maxSize: 5 * 1024 * 1024, allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
-  'chat-media':{ maxSize: 16 * 1024 * 1024 },
+  'chat-media':{ maxSize: 16 * 1024 * 1024, allowedTypes: [
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/webm', 'audio/wav', 'audio/aac',
+    'video/mp4', 'video/webm', 'video/quicktime',
+    'application/pdf',
+  ] },
 }
 
 /**

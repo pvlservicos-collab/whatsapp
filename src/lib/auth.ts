@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from './db'
 import { users, profiles } from './schema'
+import { isLoginLocked, recordLoginFailure, clearLoginAttempts } from './loginRateLimit'
 
 import { authConfig } from './auth.config'
 
@@ -29,6 +30,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const email = (credentials.email as string).toLowerCase().trim()
           const password = credentials.password as string
 
+          if (isLoginLocked(email)) return null
+
           const [user] = await db
             .select({
               id: users.id,
@@ -43,11 +46,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .where(eq(users.email, email))
             .limit(1)
 
-          if (!user) return null
+          if (!user) { recordLoginFailure(email); return null }
 
           const valid = await bcrypt.compare(password, user.passwordHash)
 
-          if (!valid) return null
+          if (!valid) { recordLoginFailure(email); return null }
+
+          clearLoginAttempts(email)
 
           return {
             id: user.id,
