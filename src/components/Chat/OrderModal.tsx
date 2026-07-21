@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react'
 import ReactDOM from 'react-dom'
 import { X, Plus, Minus, MapPin, Check, Copy, ClipboardText, CaretDown, CaretUp, MagicWand } from '@phosphor-icons/react'
 import { LeadWithOwner } from '@/lib/types'
-import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Product {
   id: string
@@ -293,16 +292,12 @@ export default function OrderModal({ lead, organizationId, onClose, onSuccess }:
   }
 
   const modal = (
-    <div className="app-safe-top fixed inset-0 z-[9999] flex items-end md:items-center justify-center p-0 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-      <div className="app-safe-bottom sheet-enter bg-[#1a2730] border border-[var(--chat-border)] rounded-t-2xl md:rounded-2xl w-full max-w-2xl max-h-[85dvh] md:max-h-[90dvh] flex flex-col shadow-2xl">
-        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-white/20" />
-        </div>
-
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+      <div className="bg-[#1a2730] border border-[var(--chat-border)] rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--chat-border)]">
           <h2 className="text-lg font-bold text-[var(--chat-text-primary)]">Registrar Venda</h2>
-          <HeaderBackButton onClick={onClose} icon="close" variant="dark" />
+          <button onClick={onClose} className="text-[var(--chat-text-muted)] hover:text-[var(--chat-text-primary)] transition-colors"><X size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5 chat-dark-scroll">

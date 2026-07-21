@@ -67,8 +67,8 @@
   --chat-text-muted: #667781;
   --chat-text-tertiary: #8696a0;
   --chat-icon: #54656f;
-  --chat-accent: #00a884;
-  --chat-accent-hover: #008f6f;
+  --chat-accent: #53bdeb;
+  --chat-accent-hover: #1a91c9;
   --chat-bg-field-evolution: #f3f0fd;
   --chat-border-evolution: rgba(139, 92, 246, 0.25);
 }
@@ -85,8 +85,8 @@
   --chat-text-muted: #8696a0;
   --chat-text-tertiary: #667781;
   --chat-icon: #aebac1;
-  --chat-accent: #00a884;
-  --chat-accent-hover: #06cf9c;
+  --chat-accent: #53bdeb;
+  --chat-accent-hover: #7cd0f5;
   --chat-bg-field-evolution: #1e1a2e;
   --chat-border-evolution: rgba(139, 92, 246, 0.2);
 }
@@ -169,21 +169,6 @@
   animation: modalContentIn 0.2s ease-out;
 }
 
-/* Bottom sheet no celular (padrao WhatsApp/apps nativos - acao sempre ao alcance
-   do polegar), modal flutuante centralizado igual antes a partir do md. */
-@keyframes sheetSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-.sheet-enter {
-  animation: modalContentIn 0.2s ease-out;
-}
-@media (max-width: 767px) {
-  .sheet-enter {
-    animation: sheetSlideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-}
-
 /* Hide scrollbar but keep scroll functionality */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE/Edge */
@@ -234,11 +219,8 @@ html {
 /* iPhone dá zoom automático ao focar campo com fonte < 16px — trava isso só no mobile,
    sem mudar o tamanho de fonte pretendido no design pra telas maiores. */
 @media (max-width: 767px) {
-  /* !important de propósito: qualquer classe de fonte menor (text-sm, text-xs etc)
-     tem mais especificidade que o seletor de elemento puro e venceria essa regra,
-     trazendo de volta o zoom automático — sem isso a proteção furava campo a campo. */
   input, textarea, select {
-    font-size: 16px !important;
+    font-size: 16px;
   }
 }
 

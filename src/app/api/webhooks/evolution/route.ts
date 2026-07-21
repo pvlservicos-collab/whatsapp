@@ -10,14 +10,6 @@ const KNOWN_NOISE_EVENTS = new Set(['messages.update', 'messages.delete', 'messa
 
 export async function POST(req: NextRequest) {
   try {
-    // Sem isso, qualquer POST de fora era aceito como mensagem legitima (endpoint
-    // publico sem verificacao nenhuma). O segredo fica embutido na propria URL do
-    // webhook configurada na Evolution API, comparado aqui.
-    const secret = req.nextUrl.searchParams.get('secret')
-    if (!secret || secret !== process.env.EVOLUTION_WEBHOOK_SECRET) {
-      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
-    }
-
     const orgId = req.nextUrl.searchParams.get('org_id')
     if (!orgId) return NextResponse.json({ ok: false, error: 'org_id ausente' }, { status: 400 })
 

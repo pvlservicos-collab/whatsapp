@@ -1,16 +1,25 @@
 /**
- * Upload de arquivos direto do navegador para o MinIO via URL pré-assinada.
+ * Upload de arquivos direto do navegador para o Vercel Blob.
  *
- * Fluxo: cliente → POST /api/upload (obtém uploadUrl + publicUrl) →
- *        cliente → PUT uploadUrl (envia bytes direto ao MinIO, sem passar pelo servidor)
+ * Por quê: Vercel Functions têm um limite rígido de 4.5MB no corpo da requisição
+ * (plataforma, não configurável). O antigo fluxo mandava o arquivo inteiro por
+ * FormData pro endpoint /api/upload, que por sua vez repassava pro Blob — então
+ * qualquer vídeo (quase sempre >4.5MB) ou foto de celular um pouco maior já
+ * chegava rejeitado (413) antes mesmo do nosso código rodar. A correção oficial
+ * da Vercel pra esse limite é o upload direto cliente→Blob: o navegador manda os
+ * bytes direto pro storage, e o servidor só emite um token de autorização de
+ * curta duração (handleUpload em /api/upload).
  *
- * Isso contorna qualquer limite de body do servidor e é equivalente ao que o
- * Vercel Blob client fazia, agora apontando para nosso próprio MinIO no VPS.
+ * https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions
  */
 'use client'
 
+import { upload } from '@vercel/blob/client'
+
 export type UploadFolder = 'avatars' | 'org-logos' | 'chat-media'
 
+// Mesmos tipos cobertos pelo antigo normalizeImageOrientation() do servidor (agora feito
+// aqui no cliente, já que o arquivo não passa mais pelo nosso backend antes do upload).
 const ROTATABLE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 /**
@@ -42,34 +51,19 @@ async function normalizeImageOrientation(file: File): Promise<File> {
 }
 
 /**
- * Envia um arquivo direto para o MinIO e retorna a URL pública.
- * Substitui o antigo `upload()` do @vercel/blob/client.
+ * Envia um arquivo direto pro Vercel Blob e retorna a URL pública.
+ * Substitui o antigo `fetch('/api/upload', { body: formData })`.
  */
 export async function uploadClientFile(file: File, folder: UploadFolder, identifier: string): Promise<string> {
   const normalized = await normalizeImageOrientation(file)
-  const contentType = normalized.type || 'application/octet-stream'
   const ext = normalized.name.split('.').pop() || 'bin'
   const pathname = `${folder}/${identifier}_${Date.now()}.${ext}`
 
-  // 1. Pede URL pré-assinada ao servidor
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pathname, contentType, size: normalized.size }),
+  const blob = await upload(pathname, normalized, {
+    access: 'public',
+    contentType: normalized.type || 'application/octet-stream',
+    handleUploadUrl: '/api/upload',
   })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error || `Falha ao obter URL de upload (HTTP ${res.status})`)
-  }
-  const { uploadUrl, publicUrl } = await res.json()
 
-  // 2. Envia bytes direto ao MinIO
-  const put = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: normalized,
-  })
-  if (!put.ok) throw new Error(`Falha ao enviar arquivo ao storage (HTTP ${put.status})`)
-
-  return publicUrl
+  return blob.url
 }

@@ -16,8 +16,7 @@ import {
   Flag,
   ChatText,
   FileText,
-  Check,
-  Plus
+  Check
 } from '@phosphor-icons/react'
 import { ReplyContext } from './ChatWindow'
 import { ChatButtonSettings, ChatButtonKey } from '@/hooks/useChatButtonSettings'
@@ -112,9 +111,6 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
   const [quickReplyHighlight, setQuickReplyHighlight] = useState(0)
   const [sendingQuickReplyMedia, setSendingQuickReplyMedia] = useState(false)
   const quickReplyButtonRef = useRef<HTMLButtonElement>(null)
-  const [showAttachMenu, setShowAttachMenu] = useState(false)
-  const attachButtonRef = useRef<HTMLButtonElement>(null)
-  const attachMenuRef = useRef<HTMLDivElement>(null)
   const quickReplyPickerRef = useRef<HTMLDivElement>(null)
 
   // A biblioteca só abre "no modo /" quando o campo inteiro é "/" + palavra — assim uma
@@ -174,29 +170,22 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
       if (
         showEmojiPicker &&
         emojiPickerRef.current && !emojiPickerRef.current.contains(target) &&
-        attachButtonRef.current && !attachButtonRef.current.contains(target)
+        emojiButtonRef.current && !emojiButtonRef.current.contains(target)
       ) {
         setShowEmojiPicker(false)
       }
       if (
         quickReplyPickerOpen &&
         quickReplyPickerRef.current && !quickReplyPickerRef.current.contains(target) &&
-        attachButtonRef.current && !attachButtonRef.current.contains(target) &&
+        quickReplyButtonRef.current && !quickReplyButtonRef.current.contains(target) &&
         inputRef.current && !inputRef.current.contains(target)
       ) {
         closeQuickReplyPicker()
       }
-      if (
-        showAttachMenu &&
-        attachMenuRef.current && !attachMenuRef.current.contains(target) &&
-        attachButtonRef.current && !attachButtonRef.current.contains(target)
-      ) {
-        setShowAttachMenu(false)
-      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showEmojiPicker, quickReplyPickerOpen, closeQuickReplyPicker, showAttachMenu])
+  }, [showEmojiPicker, quickReplyPickerOpen, closeQuickReplyPicker])
 
   const handleEmojiClick = useCallback((emojiData: EmojiClickData) => {
     setContent((prev) => prev + emojiData.emoji)
@@ -568,7 +557,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               onClick={handleMicClick}
               disabled={uploadingMedia}
               className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors hover:opacity-90 disabled:opacity-50 flex-shrink-0 mb-0.5"
-              style={{ backgroundColor: '#00A884' }}
+              style={{ backgroundColor: '#00B8D9' }}
               title="Enviar áudio"
             >
               {uploadingMedia ? <span className="animate-spin text-sm inline-block">⏳</span> : <PaperPlaneRight size={16} weight="fill" />}
@@ -576,7 +565,7 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
           </>
         ) : (
           <>
-            <div className="flex items-center gap-0 pb-0.5 relative">
+            <div className="flex items-center gap-0 pb-0.5">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -584,53 +573,50 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
                 onChange={handleFileChange}
               />
               <button
-                ref={attachButtonRef}
                 type="button"
-                onClick={() => setShowAttachMenu((prev) => !prev)}
-                disabled={uploadingMedia}
-                className={`transition-all disabled:opacity-50 disabled:cursor-not-allowed ${showAttachMenu ? 'text-[var(--chat-accent)] rotate-45' : 'text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)]'}`}
-                title="Mais opções"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingMedia || !onSendMedia || !!pendingMedia}
+                className="text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Enviar mídia"
               >
                 {uploadingMedia ? (
                   <span className="animate-spin text-sm inline-block">⏳</span>
                 ) : (
-                  <Plus size={22} weight="bold" />
+                  <Paperclip size={20} />
                 )}
               </button>
-
-              {showAttachMenu && (
-                <div
-                  ref={attachMenuRef}
-                  className="absolute bottom-full left-0 mb-2 z-50 w-52 rounded-xl shadow-xl border border-[var(--chat-border)] bg-[var(--chat-bg-menu)] py-1.5 overflow-hidden"
-                  style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { setShowAttachMenu(false); fileInputRef.current?.click() }}
-                    disabled={!onSendMedia || !!pendingMedia}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Paperclip size={18} className="text-[var(--chat-text-muted)]" />
-                    Anexar arquivo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowAttachMenu(false); setShowEmojiPicker(false); setManualSearchQuery(''); setShowQuickReplyPicker(true) }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-hover)] transition-colors"
-                  >
-                    <Lightning size={18} className="text-[var(--chat-text-muted)]" />
-                    Respostas rápidas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowAttachMenu(false); closeQuickReplyPicker(); setShowEmojiPicker(true) }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--chat-text-primary)] hover:bg-[var(--chat-bg-hover)] transition-colors"
-                  >
-                    <Smiley size={18} className="text-[var(--chat-text-muted)]" />
-                    Emoji
-                  </button>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={handleMicClick}
+                disabled={uploadingMedia || !onSendMedia || !!pendingMedia}
+                className="text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Gravar áudio"
+              >
+                <Microphone size={20} />
+              </button>
+              <button
+                ref={quickReplyButtonRef}
+                type="button"
+                onClick={() => {
+                  setShowEmojiPicker(false)
+                  setManualSearchQuery('')
+                  setShowQuickReplyPicker((prev) => !prev)
+                }}
+                className={`transition-colors ${quickReplyPickerOpen ? 'text-[#00B8D9]' : 'text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)]'}`}
+                title="Respostas rápidas"
+              >
+                <Lightning size={20} />
+              </button>
+              <button
+                ref={emojiButtonRef}
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+                className={`transition-colors ${showEmojiPicker
+                  ? 'text-[var(--chat-accent)]'
+                  : 'text-[var(--chat-text-muted)] hover:text-[var(--chat-icon)]'
+                  }`}
+              >
+                <Smiley size={20} />
+              </button>
             </div>
 
             {/* Emoji Picker Popover */}
@@ -690,27 +676,14 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               rows={1}
               style={{ maxHeight: '160px' }}
             />
-            {!pendingMedia && !content.trim() ? (
-              <button
-                type="button"
-                onClick={handleMicClick}
-                disabled={uploadingMedia || !onSendMedia}
-                title="Gravar áudio"
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mb-0.5"
-                style={{ backgroundColor: '#00A884' }}
-              >
-                <Microphone size={16} weight="fill" />
-              </button>
-            ) : (
-              <button
-                onClick={pendingMedia ? handleConfirmSendMedia : handleSend}
-                disabled={pendingMedia ? uploadingMedia : (!content.trim() || sending)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mb-0.5"
-                style={{ backgroundColor: '#00A884' }}
-              >
-                <PaperPlaneRight size={16} weight="fill" />
-              </button>
-            )}
+            <button
+              onClick={pendingMedia ? handleConfirmSendMedia : handleSend}
+              disabled={pendingMedia ? uploadingMedia : (!content.trim() || sending)}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mb-0.5"
+              style={{ backgroundColor: '#00B8D9' }}
+            >
+              <PaperPlaneRight size={16} weight="fill" />
+            </button>
           </>
         )}
       </div>

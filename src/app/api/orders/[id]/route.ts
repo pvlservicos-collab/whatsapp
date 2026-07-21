@@ -5,7 +5,6 @@ import { orders, orderItems, products, orderStatusHistory } from '@/lib/schema'
 import { eq, and, inArray, isNull } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { syncLeadLastOrderAttributes } from '@/lib/db-helpers'
-import { handleOrderDelivered } from '@/lib/leadAutomations'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -137,12 +136,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       })
     }
     if (historyRows.length > 0) await db.insert(orderStatusHistory).values(historyRows)
-
-    // Pedido marcado como entregue pela Logística — move o lead pra etapa de pós-venda
-    // e dispara a mensagem "POSVENDA" automaticamente (ver src/lib/leadAutomations.ts).
-    if (body.delivery_status !== undefined && body.delivery_status !== existing.deliveryStatus && order.deliveryStatus === 'delivered' && order.leadId) {
-      await handleOrderDelivered(auth.organizationId, order.leadId).catch(err => console.error('[orders] Falha na automação de pós-venda:', err))
-    }
 
     // Mantém a etiqueta "Pago/Pendente" da lista de conversas em dia e avisa
     // quem estiver com o Chat aberto (lista + perfil do cliente) em tempo real.

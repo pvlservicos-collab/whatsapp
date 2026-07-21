@@ -6,7 +6,6 @@ import { leads, leadTags, tags, leadStageHistory, organizationMembers, profiles 
 import { eq, and, isNull, asc } from 'drizzle-orm'
 import { mapLead } from '@/lib/mappers'
 import { isUniqueViolation } from '@/lib/db-helpers'
-import { applyTagStageAutomation } from '@/lib/leadAutomations'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -124,9 +123,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         await db.insert(leadTags).values(
           body.tags.map((tagId: string) => ({ leadId: existing.id, tagId, organizationId: auth.organizationId }))
         ).onConflictDoNothing()
-        for (const tagId of body.tags) {
-          await applyTagStageAutomation(auth.organizationId, existing.id, tagId, auth.memberId || null)
-        }
       }
     }
 

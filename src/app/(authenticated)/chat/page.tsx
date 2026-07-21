@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline, useIsMobile } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
@@ -10,7 +10,6 @@ import { getInitials } from '@/lib/utils'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { CaretLeft, Info } from '@phosphor-icons/react'
-import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 export default function ChatPage() {
   const { organizationId, loading, permissions, isMaster, roleName, currentOrganization, user, profileName } = useAuth()
@@ -29,38 +28,9 @@ export default function ChatPage() {
   })
 
   const [selectedLead, setSelectedLead] = useState<LeadWithOwner | null>(null)
-  // Trava a seleção inicial num lead concreto assim que a lista carrega, pra
-  // `selectedLead` nunca mais "seguir" a reordenação por atividade recente da
-  // lista (org inteira) — sem isso, qualquer admin mandando mensagem em
-  // QUALQUER lead reordenava allLeads e trocava sozinha a conversa de quem
-  // ainda não tinha clicado em nada (bug: chat de um atendente troca pro
-  // cliente que outro atendente acabou de mandar mensagem).
-  const hasPinnedInitialLeadRef = useRef(false)
   const isMobile = useIsMobile()
   const [mobileView, setMobileView] = useState<'list' | 'conversation'>('list')
   const [showMobileDetails, setShowMobileDetails] = useState(false)
-
-  // Arrastar da borda esquerda da tela pra voltar pra lista (gesto nativo do
-  // iOS) — só reconhece o gesto se o toque comecar perto da borda, pra nao
-  // atrapalhar scroll/interacoes normais dentro da conversa.
-  const edgeSwipeStart = useRef<{ x: number; y: number } | null>(null)
-  const handleConversationTouchStart = useCallback((e: React.TouchEvent) => {
-    const t = e.touches[0]
-    edgeSwipeStart.current = t.clientX <= 24 ? { x: t.clientX, y: t.clientY } : null
-  }, [])
-  const handleConversationTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!edgeSwipeStart.current) return
-    const t = e.touches[0]
-    const deltaX = t.clientX - edgeSwipeStart.current.x
-    const deltaY = t.clientY - edgeSwipeStart.current.y
-    if (deltaX > 70 && Math.abs(deltaY) < 50) {
-      edgeSwipeStart.current = null
-      setMobileView('list')
-    }
-  }, [])
-  const handleConversationTouchEnd = useCallback(() => {
-    edgeSwipeStart.current = null
-  }, [])
 
   const handleSelectLead = useCallback((lead: LeadWithOwner) => {
     setSelectedLead(lead)
@@ -99,19 +69,6 @@ export default function ChatPage() {
     })()
     return () => { cancelled = true }
   }, [leadIdFromUrl, globalLeads, selectedLead?.id])
-
-  // Fixa a seleção inicial (allLeads[0], o topo do inbox) uma única vez, assim
-  // que a lista chega — só quando não há `?leadId=` na URL (esse tem
-  // prioridade e é resolvido pelo effect acima). Depois disso `selectedLead`
-  // só muda por ação explícita do usuário (clicar numa conversa).
-  useEffect(() => {
-    if (hasPinnedInitialLeadRef.current) return
-    if (leadIdFromUrl) return
-    if (selectedLead) { hasPinnedInitialLeadRef.current = true; return }
-    if (allLeads.length === 0) return
-    setSelectedLead(allLeads[0])
-    hasPinnedInitialLeadRef.current = true
-  }, [allLeads, selectedLead, leadIdFromUrl])
 
   // Resolve the displayed lead: prefer the freshest version from context; fall back
   // to the clicked `selectedLead` when the lead isn't in memory (search hits can
@@ -207,16 +164,13 @@ export default function ChatPage() {
     }
   }, [setLeads, selectedLead])
 
-  const handleChatMessageSent = useCallback((content: string, leadId: string) => {
+  const handleChatMessageSent = useCallback((content: string) => {
     const memberId = currentOrganization?.id || ''
     const fullName = profileName || user?.name || user?.email || ''
-    // Usa o leadId recebido do ChatWindow (o lead que ele de fato tinha montado
-    // no momento do envio), nunca `displayedLead` do escopo — evita atribuir o
-    // envio/dono a um lead diferente caso a tela já tenha trocado de conversa.
-    const targetLead = allLeads.find(l => l.id === leadId)
+    const leadId = displayedLead?.id
     // Só assume automaticamente quem respondeu se o lead ainda não tem responsável —
     // nunca sobrescreve uma atribuição manual feita por outra pessoa.
-    const alreadyHasOwner = !!targetLead?.owner_member_id
+    const alreadyHasOwner = !!displayedLead?.owner_member_id
 
     setLeads(prev => prev.map(l => {
       if (l.id === leadId) {
@@ -255,7 +209,7 @@ export default function ChatPage() {
         body: JSON.stringify({ owner_member_id: memberId }),
       }).catch((err) => console.error('Failed to auto-assign owner:', err))
     }
-  }, [allLeads, selectedLead, setLeads, currentOrganization, user, profileName])
+  }, [displayedLead, selectedLead, setLeads, currentOrganization, user, profileName])
 
   const handleUpdateLead = useCallback((leadId: string, updates: Partial<LeadWithOwner>) => {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l))
@@ -300,14 +254,11 @@ export default function ChatPage() {
 
         {mobileView === 'conversation' && (
           displayedLead ? (
-            <div
-              className="flex flex-col h-full min-h-0"
-              onTouchStart={handleConversationTouchStart}
-              onTouchMove={handleConversationTouchMove}
-              onTouchEnd={handleConversationTouchEnd}
-            >
+            <div className="flex flex-col h-full min-h-0">
               <div className="flex items-center gap-3 h-14 px-2 border-b border-[var(--chat-border)] bg-[var(--chat-bg-field)] flex-shrink-0">
-                <HeaderBackButton onClick={() => setMobileView('list')} icon="back" variant="chat" label="Voltar" />
+                <button onClick={() => setMobileView('list')} className="w-9 h-9 flex items-center justify-center rounded-lg text-[var(--chat-text-primary)]" aria-label="Voltar">
+                  <CaretLeft size={20} />
+                </button>
                 <div className="w-8 h-8 rounded-full bg-[var(--chat-bg-hover)] flex items-center justify-center overflow-hidden flex-shrink-0">
                   {displayedLead.avatar_url ? (
                     <img src={displayedLead.avatar_url} alt={displayedLead.title} className="w-full h-full object-cover" />
@@ -323,7 +274,6 @@ export default function ChatPage() {
               </div>
               <div className="flex-1 min-h-0">
                 <ChatWindow
-                  key={displayedLead.id}
                   lead={displayedLead}
                   organizationId={organizationId}
                   onMessageSent={handleChatMessageSent}
@@ -376,7 +326,6 @@ export default function ChatPage() {
       <div className="flex-1 min-w-0">
         {displayedLead ? (
           <ChatWindow
-            key={displayedLead.id}
             lead={displayedLead}
             organizationId={organizationId}
             onMessageSent={handleChatMessageSent}

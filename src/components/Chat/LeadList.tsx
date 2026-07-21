@@ -10,7 +10,6 @@ import { useTags } from '@/hooks'
 import { getLeadChannel } from '@/lib/leadChannel'
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab } from './ChatFilterTabs'
-import { useLeadsContext } from '@/contexts/LeadsContext'
 
 interface LeadListProps {
   leads: LeadWithOwner[]
@@ -118,41 +117,6 @@ export default function LeadList({
   const menuRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Puxar pra atualizar (pull-to-refresh) — so ativa quando a lista ja esta
-  // no topo, senao atrapalharia o scroll normal pra cima.
-  const { refetch } = useLeadsContext()
-  const [pullDistance, setPullDistance] = useState(0)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const pullStart = useRef<number | null>(null)
-  const PULL_TRIGGER_THRESHOLD = 64
-  const PULL_MAX = 100
-
-  const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isRefreshing) return
-    pullStart.current = scrollContainerRef.current?.scrollTop === 0 ? e.touches[0].clientY : null
-  }, [isRefreshing])
-
-  const handlePullTouchMove = useCallback((e: React.TouchEvent) => {
-    if (pullStart.current === null) return
-    const delta = e.touches[0].clientY - pullStart.current
-    if (delta <= 0) { setPullDistance(0); return }
-    if ((scrollContainerRef.current?.scrollTop ?? 0) > 0) { pullStart.current = null; setPullDistance(0); return }
-    e.preventDefault()
-    setPullDistance(Math.min(PULL_MAX, delta * 0.5))
-  }, [])
-
-  const handlePullTouchEnd = useCallback(async () => {
-    if (pullStart.current === null) return
-    pullStart.current = null
-    if (pullDistance >= PULL_TRIGGER_THRESHOLD) {
-      setIsRefreshing(true)
-      setPullDistance(48)
-      await refetch()
-      setIsRefreshing(false)
-    }
-    setPullDistance(0)
-  }, [pullDistance, refetch])
-
   const INITIAL_DISPLAY = 20
   const DISPLAY_INCREMENT = 15
   const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY)
@@ -251,13 +215,17 @@ export default function LeadList({
     }
   }, [contextMenu.lead, onUpdateLead])
 
-  const archiveLead = useCallback(async (lead: LeadWithOwner) => {
+  const handleToggleArchive = useCallback(async () => {
+    if (!contextMenu.lead) return
+    const lead = contextMenu.lead
     const newArchived = !lead.is_archived
 
     // Optimistic update
     if (onUpdateLead) {
       onUpdateLead(lead.id, { is_archived: newArchived })
     }
+
+    setContextMenu(prev => ({ ...prev, visible: false }))
 
     try {
       await fetch(`/api/leads/${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_archived: newArchived }) })
@@ -268,20 +236,7 @@ export default function LeadList({
         onUpdateLead(lead.id, { is_archived: !newArchived })
       }
     }
-  }, [onUpdateLead])
-
-  const handleToggleArchive = useCallback(async () => {
-    if (!contextMenu.lead) return
-    const lead = contextMenu.lead
-    setContextMenu(prev => ({ ...prev, visible: false }))
-    await archiveLead(lead)
-  }, [contextMenu.lead, archiveLead])
-
-  // Arrastar o item pra esquerda arquiva na hora (padrão WhatsApp) — mesma
-  // ação do menu de contexto "Arquivar conversa", só que sem precisar abrir o menu.
-  const handleSwipeArchive = useCallback((lead: LeadWithOwner) => {
-    archiveLead(lead)
-  }, [archiveLead])
+  }, [contextMenu.lead, onUpdateLead])
 
   if (loading) {
     return (
@@ -311,9 +266,10 @@ export default function LeadList({
   // Arquivada some das outras abas (igual WhatsApp) — só a aba "Arquivados" mostra.
   const nonArchivedHits = filteredHits.filter((hit) => !hit.lead.is_archived)
 
-  const tabCounts: Record<ChatTab, number> = { all: nonArchivedHits.length, unread: 0, whatsapp: 0, instagram: 0, archived: 0 }
+  const tabCounts: Record<ChatTab, number> = { all: nonArchivedHits.length, unread: 0, awaiting: 0, whatsapp: 0, instagram: 0, archived: 0 }
   for (const hit of nonArchivedHits) {
     if (hit.lead.is_unread) tabCounts.unread++
+    if (hit.lead.last_message_sender_type === 'lead') tabCounts.awaiting++
     const channel = getLeadChannel(hit.lead)
     if (channel === 'whatsapp') tabCounts.whatsapp++
     else if (channel === 'instagram') tabCounts.instagram++
@@ -326,6 +282,7 @@ export default function LeadList({
       ? nonArchivedHits
       : nonArchivedHits.filter((hit) => {
           if (activeTab === 'unread') return !!hit.lead.is_unread
+          if (activeTab === 'awaiting') return hit.lead.last_message_sender_type === 'lead'
           return getLeadChannel(hit.lead) === activeTab
         })
 
@@ -423,22 +380,7 @@ export default function LeadList({
       <ChatFilterTabs activeTab={activeTab} onChange={setActiveTab} counts={tabCounts} />
 
       {/* Leads List */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll relative"
-        onTouchStart={handlePullTouchStart}
-        onTouchMove={handlePullTouchMove}
-        onTouchEnd={handlePullTouchEnd}
-      >
-        <div
-          className="flex items-center justify-center overflow-hidden transition-[height] duration-200"
-          style={{ height: pullDistance }}
-        >
-          <div
-            className={`w-6 h-6 border-2 border-[var(--chat-accent)] border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`}
-            style={!isRefreshing ? { transform: `rotate(${pullDistance * 3.6}deg)` } : undefined}
-          />
-        </div>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll">
         {tabFilteredHits.length === 0 ? (
           <div className="flex items-center justify-center h-full text-[var(--chat-text-muted)] text-sm">
             {searching ? 'Buscando…' : 'Nenhum lead encontrado'}
@@ -459,7 +401,6 @@ export default function LeadList({
                   timeStr={timeStr}
                   onClick={handleLeadClick}
                   onContextMenu={handleContextMenu}
-                  onArchive={handleSwipeArchive}
                   hit={hit}
                   query={search}
                   hideReplyHighlight={hideReplyHighlight}

@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { MagnifyingGlass, Phone, ChatText, User, SpinnerGap, X } from '@phosphor-icons/react'
 import { useAuth, useIsMobile } from '@/hooks'
 import { useRouter } from 'next/navigation'
-import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface SearchResult {
   id: string
@@ -139,7 +138,13 @@ export default function GlobalSearch() {
         {mobileOpen && (
           <div className="app-safe-top fixed inset-0 z-[70] bg-white dark:bg-[#0d1117] flex flex-col">
             <div className="flex items-center gap-2 p-3 border-b border-gray-100 dark:border-[#30363d]">
-              <HeaderBackButton onClick={() => setMobileOpen(false)} icon="close" variant="light" label="Fechar busca" className="app-tap-target" />
+              <button
+                onClick={() => setMobileOpen(false)}
+                aria-label="Fechar busca"
+                className="app-tap-target w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-[#21262d] transition-colors"
+              >
+                <X size={20} />
+              </button>
               <div className="relative flex-1">
                 <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <SpinnerGap className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin transition-opacity ${loading ? 'opacity-100' : 'opacity-0'}`} weight="bold" />

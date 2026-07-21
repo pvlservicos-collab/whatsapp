@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { LeadWithOwner } from '@/lib/types'
 import { useAuth } from '@/hooks'
 import { usePusherChannel } from '@/hooks/usePusher'
@@ -17,7 +17,6 @@ interface LeadsContextType {
   error: string | null
   stageStats: Record<string, StageStats>
   moveLeadToStage: (leadId: string, newStageId: string, oldStageId?: string, memberId?: string) => Promise<void>
-  refetch: () => Promise<void>
 }
 
 const LeadsContext = createContext<LeadsContextType | undefined>(undefined)
@@ -67,30 +66,12 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     fetchLeads()
   }, [organizationId, currentOrganization?.id])
 
-  // Um evento `lead.updated`/`lead.created` chega no canal da organização inteira
-  // pra TODO admin conectado — sem agrupar rajadas (várias mensagens em segundos),
-  // cada evento disparava um refetch completo por sessão aberta, multiplicando
-  // consultas ao banco e contribuindo pra esgotar o pool de conexões quando várias
-  // pessoas estão logadas ao mesmo tempo. Agrupa numa janela curta antes de refazer
-  // a consulta; `lead.deleted` (só filtro local) e `__reconnected` continuam imediatos.
-  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const scheduleFetchLeads = () => {
-    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
-    refetchTimerRef.current = setTimeout(() => {
-      refetchTimerRef.current = null
-      fetchLeads(false)
-    }, 500)
-  }
-  useEffect(() => () => {
-    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
-  }, [])
-
   // Real-time via Pusher
   usePusherChannel(
     organizationId ? `org-${organizationId}` : '',
     {
-      'lead.created': scheduleFetchLeads,
-      'lead.updated': scheduleFetchLeads,
+      'lead.created': () => fetchLeads(false),
+      'lead.updated': () => fetchLeads(false),
       'lead.deleted': (data: any) => {
         if (data?.id) setLeads(prev => prev.filter(l => l.id !== data.id))
       },
@@ -119,13 +100,8 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     []
   )
 
-  // Puxar pra atualizar (pull-to-refresh) no celular chama isso — sem
-  // showLoading pra nao esconder a lista inteira atras de um spinner de tela
-  // cheia, so o indicador de puxar mesmo.
-  const refetch = useCallback(() => fetchLeads(false), [organizationId, currentOrganization?.id])
-
   return (
-    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage, refetch }}>
+    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage }}>
       {children}
     </LeadsContext.Provider>
   )

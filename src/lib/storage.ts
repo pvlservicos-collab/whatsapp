@@ -42,14 +42,12 @@ export async function storageDelete(key: string): Promise<void> {
 export async function storagePresignedPut(
   key: string,
   contentType: string,
-  maxBytes: number,
 ): Promise<{ uploadUrl: string; publicUrl: string }> {
   const cmd = new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
     ContentType: contentType,
     ACL: 'public-read',
-    ContentLength: maxBytes,
   })
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 })
   const publicUrl = `${PUBLIC_URL}/${BUCKET}/${key}`

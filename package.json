@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "exec next start",
+    "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
@@ -22,6 +22,8 @@
     "@neondatabase/serverless": "^0.10.4",
     "@phosphor-icons/react": "^2.1.10",
     "@scalar/nextjs-api-reference": "^0.9.24",
+    "@types/pg": "^8.20.0",
+    "@vercel/blob": "^2.6.1",
     "@xyflow/react": "^12.11.0",
     "bcryptjs": "^2.4.3",
     "date-fns": "^4.1.0",
@@ -46,7 +48,6 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.10.6",
-    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/web-push": "^3.6.4",

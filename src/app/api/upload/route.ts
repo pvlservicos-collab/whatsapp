@@ -1,53 +1,61 @@
-import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
-import { apiError } from '@/lib/api-auth'
-import { storagePresignedPut } from '@/lib/storage'
-import { randomBytes } from 'crypto'
-
-const FOLDER_LIMITS: Record<string, { maxSize: number; allowedTypes?: string[] }> = {
-  avatars:    { maxSize: 5 * 1024 * 1024, allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
-  'org-logos':{ maxSize: 5 * 1024 * 1024, allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
-  'chat-media':{ maxSize: 16 * 1024 * 1024, allowedTypes: [
-    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-    'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/webm', 'audio/wav', 'audio/aac',
-    'video/mp4', 'video/webm', 'video/quicktime',
-    'application/pdf',
-  ] },
-}
-
 /**
  * POST /api/upload
- * Gera uma URL pré-assinada para upload direto do navegador ao MinIO.
- * Body: { pathname: string; contentType: string; size: number }
- * Retorna: { uploadUrl, publicUrl }
+ * Emite tokens de upload direto-pro-Blob (fluxo `handleUpload` do @vercel/blob/client).
+ *
+ * O arquivo NÃO passa mais por essa function — o navegador envia os bytes direto pro
+ * Vercel Blob usando o token que essa rota autoriza. Isso existe porque Vercel Functions
+ * têm um limite rígido de 4.5MB no corpo da requisição (plataforma, não configurável):
+ * qualquer vídeo ou foto de celular um pouco maior era rejeitado (413) antes mesmo do
+ * nosso código rodar. Ver src/lib/blobClient.ts para o lado cliente e o motivo completo.
  */
+import { NextRequest } from 'next/server'
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
+import { auth } from '@/lib/auth'
+import { apiError } from '@/lib/api-auth'
+
+const FOLDER_LIMITS: Record<string, { maxSize: number; allowedContentTypes?: string[] }> = {
+  avatars: { maxSize: 5 * 1024 * 1024, allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+  'org-logos': { maxSize: 5 * 1024 * 1024, allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+  // 16MB — limite de mídia do WhatsApp; sem restrição de tipo (imagem, vídeo, áudio, documento)
+  'chat-media': { maxSize: 16 * 1024 * 1024 },
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return apiError(401, 'Não autenticado.')
+    const body = (await req.json()) as HandleUploadBody
 
-    const { pathname, contentType, size } = await req.json()
-    if (!pathname || !contentType) return apiError(400, 'pathname e contentType são obrigatórios.')
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        // Só o pedido de token (feito pelo navegador do usuário) tem cookie de sessão —
+        // o callback abaixo (onUploadCompleted) é o servidor da própria Vercel chamando
+        // de volta depois do upload, sem sessão de usuário; exigir auth() ali quebraria
+        // esse callback sempre. A autenticidade da chamada da Vercel já é validada pela
+        // assinatura interna do handleUpload, não precisa de checagem extra aqui.
+        const session = await auth()
+        if (!session?.user) throw new Error('Não autenticado.')
 
-    const folder = pathname.split('/')[0]
-    const limits = FOLDER_LIMITS[folder]
-    if (!limits) return apiError(400, 'Pasta inválida. Use: avatars, org-logos ou chat-media')
+        const folder = pathname.split('/')[0]
+        const limits = FOLDER_LIMITS[folder]
+        if (!limits) throw new Error('Pasta inválida. Use: avatars, org-logos ou chat-media')
 
-    if (limits.allowedTypes && !limits.allowedTypes.includes(contentType)) {
-      return apiError(400, `Tipo não permitido para ${folder}. Aceitos: ${limits.allowedTypes.join(', ')}`)
-    }
-    if (size && size > limits.maxSize) {
-      return apiError(400, `Arquivo muito grande. Máximo: ${limits.maxSize / 1024 / 1024}MB`)
-    }
+        return {
+          allowedContentTypes: limits.allowedContentTypes,
+          maximumSizeInBytes: limits.maxSize,
+          addRandomSuffix: true,
+        }
+      },
+      onUploadCompleted: async () => {
+        // Nada a fazer — o cliente já recebe a URL final na resposta do upload().
+        // (Em dev local, a Vercel não consegue chamar esse callback de volta pro
+        // localhost; isso é esperado e não afeta o upload em si.)
+      },
+    })
 
-    // Garante nome único
-    const ext = pathname.split('.').pop() || 'bin'
-    const uniqueKey = `${folder}/${randomBytes(8).toString('hex')}_${Date.now()}.${ext}`
-
-    const { uploadUrl, publicUrl } = await storagePresignedPut(uniqueKey, contentType, limits.maxSize)
-    return Response.json({ uploadUrl, publicUrl, url: publicUrl })
+    return Response.json(jsonResponse)
   } catch (err: any) {
     console.error('[/api/upload]', err)
-    return apiError(500, err.message || 'Erro ao gerar URL de upload.')
+    return apiError(400, err.message || 'Erro ao autorizar upload.')
   }
 }

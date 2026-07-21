@@ -6,7 +6,6 @@ import { LeadActivityWithActor, LeadWithOwner } from '@/lib/types'
 import { formatTime } from '@/lib/utils'
 import { useAuth } from '@/hooks'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
-import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface ActivityTimelineProps {
   activities: LeadActivityWithActor[]
@@ -174,12 +173,12 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
           {senderAvatar ? (
             <img src={senderAvatar} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-green-100' : 'bg-[var(--chat-bg-hover)]'}`}>
+            <div className={`w-full h-full flex items-center justify-center ${isOutgoing ? 'bg-blue-100' : 'bg-[var(--chat-bg-hover)]'}`}>
               <span className={`text-[10px] font-bold ${isOutgoing ? 'text-blue-500' : 'text-[var(--chat-text-muted)]'}`}>👤</span>
             </div>
           )}
         </div>
-        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? '#00A884' : 'var(--chat-bg-hover)' }}>
+        <div className="absolute -bottom-1 -left-1 rounded-full p-0.5 shadow-sm" style={{ backgroundColor: isOutgoing ? '#21BCED' : 'var(--chat-bg-hover)' }}>
           <Microphone size={12} weight="fill" className={isOutgoing ? "text-white" : "text-[var(--chat-accent)]"} />
         </div>
       </div>
@@ -373,8 +372,8 @@ const MessageBubble = memo(function MessageBubble({
   if (outgoing) {
     const isAI = senderType === 'ai'
     const isAutomated = senderType === 'automated'
-    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : isAutomated ? 'rgba(217, 119, 6, 0.85)' : 'rgba(0, 168, 132, 0.9)'
-    const labelColor = isAI ? '#4B3BFD' : isAutomated ? '#D97706' : '#00A884'
+    const bubbleColor = isAI ? 'rgba(75, 59, 253, 0.85)' : isAutomated ? 'rgba(34, 197, 94, 0.85)' : 'rgba(33, 188, 237, 0.85)'
+    const labelColor = isAI ? '#4B3BFD' : isAutomated ? '#16A34A' : '#21BCED'
     const label = isAI ? 'Atlas AI' : isAutomated ? 'Automático' : 'Você'
 
     return (
@@ -394,14 +393,14 @@ const MessageBubble = memo(function MessageBubble({
             ) : isAutomated ? (
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#D97706' }}
+                style={{ backgroundColor: '#16A34A' }}
               >
                 <Lightning size={12} weight="fill" className="text-white" />
               </div>
             ) : (
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden"
-                style={{ backgroundColor: '#00A884' }}
+                style={{ backgroundColor: '#21BCED' }}
               >
                 {activity.actor?.profiles?.avatar_url ? (
                   <img src={activity.actor.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
@@ -419,45 +418,45 @@ const MessageBubble = memo(function MessageBubble({
               (não só no hover) quando a mensagem está selecionada pra apagar em lote,
               senão o checkbox marcado "some" assim que o mouse sai da bolha. */}
           {!isDeleted && (onTogglePin || onReply || (onRequestDelete && canDelete)) && (
-            <div className={`absolute -left-9 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity z-20 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
+            <div className={`absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 transition-opacity z-20 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
               {onToggleSelect && canDelete && (
                 <button
                   onClick={() => onToggleSelect(activity)}
-                  className={`w-7 h-7 rounded-full border shadow-sm flex items-center justify-center transition-colors ${
+                  className={`w-6 h-6 rounded-full border shadow-sm flex items-center justify-center transition-colors ${
                     isSelected
                       ? 'bg-[var(--chat-accent)] border-[var(--chat-accent)]'
                       : 'bg-[var(--chat-bg-menu)] border-[var(--chat-border)] hover:bg-[var(--chat-bg-hover)]'
                   }`}
                   title={isSelected ? 'Remover da seleção' : 'Selecionar mensagem'}
                 >
-                  {isSelected && <Check size={14} weight="bold" className="text-white" />}
+                  {isSelected && <Check size={12} weight="bold" className="text-white" />}
                 </button>
               )}
               {onRequestDelete && canDelete && (
                 <button
                   onClick={() => onRequestDelete(activity)}
-                  className="w-7 h-7 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-red-500/10 hover:border-red-500/30"
+                  className="w-6 h-6 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-red-500/10 hover:border-red-500/30"
                   title="Apagar mensagem"
                 >
-                  <Trash size={14} weight="bold" className="text-[var(--chat-icon)] hover:text-red-500" />
+                  <Trash size={12} weight="bold" className="text-[var(--chat-icon)] hover:text-red-500" />
                 </button>
               )}
               {onTogglePin && (
                 <button
                   onClick={() => onTogglePin(activity)}
-                  className="w-7 h-7 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
+                  className="w-6 h-6 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
                   title={isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
                 >
-                  <PushPin size={14} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? 'text-[var(--chat-accent)] -rotate-45' : 'text-[var(--chat-icon)]'} />
+                  <PushPin size={12} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? 'text-[var(--chat-accent)] -rotate-45' : 'text-[var(--chat-icon)]'} />
                 </button>
               )}
               {onReply && (
                 <button
                   onClick={() => onReply(activity)}
-                  className="w-7 h-7 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
+                  className="w-6 h-6 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
                   title="Responder"
                 >
-                  <ArrowBendUpLeft size={14} weight="bold" className="text-[var(--chat-icon)]" />
+                  <ArrowBendUpLeft size={12} weight="bold" className="text-[var(--chat-icon)]" />
                 </button>
               )}
             </div>
@@ -553,23 +552,23 @@ const MessageBubble = memo(function MessageBubble({
         <div className="relative">
           {/* Reply/Pin buttons — inbound (appear on right) */}
           {(onTogglePin || onReply) && (
-            <div className="absolute -right-9 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-opacity z-20">
+            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity z-20">
               {onTogglePin && (
                 <button
                   onClick={() => onTogglePin(activity)}
-                  className="w-7 h-7 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
+                  className="w-6 h-6 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
                   title={isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
                 >
-                  <PushPin size={14} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? 'text-[var(--chat-accent)] -rotate-45' : 'text-[var(--chat-icon)]'} />
+                  <PushPin size={12} weight={isPinned ? 'fill' : 'bold'} className={isPinned ? 'text-[var(--chat-accent)] -rotate-45' : 'text-[var(--chat-icon)]'} />
                 </button>
               )}
               {onReply && (
                 <button
                   onClick={() => onReply(activity)}
-                  className="w-7 h-7 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
+                  className="w-6 h-6 rounded-full bg-[var(--chat-bg-menu)] border border-[var(--chat-border)] shadow-sm flex items-center justify-center hover:bg-[var(--chat-bg-hover)]"
                   title="Responder"
                 >
-                  <ArrowBendUpLeft size={14} weight="bold" className="text-[var(--chat-icon)]" />
+                  <ArrowBendUpLeft size={12} weight="bold" className="text-[var(--chat-icon)]" />
                 </button>
               )}
             </div>
@@ -913,13 +912,13 @@ export default function ActivityTimeline({
           className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
           onClick={() => setSelectedImage(null)}
         >
-          <HeaderBackButton
+          <button
+            className="absolute top-6 right-6 text-white bg-black/50 hover:bg-black/80 transition flex items-center justify-center w-10 h-10 rounded-full shadow-lg border border-white/10"
             onClick={() => setSelectedImage(null)}
-            icon="close"
-            variant="dark"
-            label="Fechar (Esc)"
-            className="absolute top-6 right-6"
-          />
+            title="Fechar (Esc)"
+          >
+            <X size={20} weight="bold" />
+          </button>
           <img
             src={selectedImage}
             alt="Mídia Expandida"

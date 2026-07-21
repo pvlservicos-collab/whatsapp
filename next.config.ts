@@ -2,28 +2,13 @@ import type { NextConfig } from 'next'
 
 const config: NextConfig = {
   reactStrictMode: true,
-  poweredByHeader: false,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-        ],
-      },
-    ]
-  },
   images: {
     remotePatterns: [
-      // Vercel Blob URLs
-      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
-      // Avatares do WhatsApp vindos do Uazapi
+      { protocol: 'https', hostname: 'minios3.folemmidia.com' },
       { protocol: 'https', hostname: '*.uazapi.com' },
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
     ],
   },
   // Variáveis de ambiente que precisam ser acessíveis no cliente
