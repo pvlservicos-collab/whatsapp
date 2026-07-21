@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { LeadWithOwner } from '@/lib/types'
 import { useAuth } from '@/hooks'
 import { usePusherChannel } from '@/hooks/usePusher'
@@ -67,12 +67,30 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     fetchLeads()
   }, [organizationId, currentOrganization?.id])
 
+  // Um evento `lead.updated`/`lead.created` chega no canal da organização inteira
+  // pra TODO admin conectado — sem agrupar rajadas (várias mensagens em segundos),
+  // cada evento disparava um refetch completo por sessão aberta, multiplicando
+  // consultas ao banco e contribuindo pra esgotar o pool de conexões quando várias
+  // pessoas estão logadas ao mesmo tempo. Agrupa numa janela curta antes de refazer
+  // a consulta; `lead.deleted` (só filtro local) e `__reconnected` continuam imediatos.
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleFetchLeads = () => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null
+      fetchLeads(false)
+    }, 500)
+  }
+  useEffect(() => () => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+  }, [])
+
   // Real-time via Pusher
   usePusherChannel(
     organizationId ? `org-${organizationId}` : '',
     {
-      'lead.created': () => fetchLeads(false),
-      'lead.updated': () => fetchLeads(false),
+      'lead.created': scheduleFetchLeads,
+      'lead.updated': scheduleFetchLeads,
       'lead.deleted': (data: any) => {
         if (data?.id) setLeads(prev => prev.filter(l => l.id !== data.id))
       },

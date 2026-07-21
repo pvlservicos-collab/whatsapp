@@ -104,6 +104,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return Response.json({ data })
   } catch (err: any) {
+    console.error('[API] GET /api/leads/[id]/messages falhou:', err)
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }
 }
@@ -329,6 +330,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       lead_name: lead?.title,
     }, { status: 201 })
   } catch (err: any) {
+    console.error('[API] POST /api/leads/[id]/messages falhou:', err)
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }
 }

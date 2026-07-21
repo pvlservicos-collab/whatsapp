@@ -4,7 +4,7 @@
  * useLeadActivities — substitui queries diretas ao Supabase
  * Busca atividades via API + Pusher para realtime
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { LeadActivityWithActor } from '@/lib/types'
 import { usePusherChannel } from './usePusher'
@@ -46,13 +46,30 @@ export function useLeadActivities(organizationId: string, leadId: string) {
     fetchActivities(true)
   }, [fetchActivities])
 
+  // Agrupa refetches de rede numa janela curta — várias mensagens chegando em
+  // rajada (ex: cliente mandando várias seguidas) senão disparavam um GET
+  // completo por evento, multiplicando carga no banco quando tem várias
+  // conversas/sessões abertas ao mesmo tempo. A limpeza otimista continua
+  // instantânea; só o refetch de rede é adiado.
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleFetchActivities = useCallback(() => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null
+      fetchActivities(false)
+    }, 400)
+  }, [fetchActivities])
+  useEffect(() => () => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+  }, [])
+
   // Realtime via Pusher
   usePusherChannel(`lead-${leadId}`, {
     'activity.created': () => {
       setActivities((prev) => prev.filter((a) => !a.metadata?.is_optimistic))
-      fetchActivities(false)
+      scheduleFetchActivities()
     },
-    'activity.updated': () => fetchActivities(false),
+    'activity.updated': scheduleFetchActivities,
     '__reconnected': () => fetchActivities(false),
   })
 

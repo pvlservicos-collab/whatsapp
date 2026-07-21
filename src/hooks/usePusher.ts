@@ -54,13 +54,25 @@ export function usePusherChannel(channelName: string, handlers: EventHandlers) {
       }
     }
 
+    // Liga cada evento por uma função wrapper estável (não o handler bruto) que
+    // sempre lê `handlersRef.current` no momento em que o evento chega — evita
+    // dois problemas: (1) o handler ficar "congelado" nos valores da primeira
+    // renderização, já que essa mesma assinatura de canal costuma durar a sessão
+    // inteira (ex: canal da organização); (2) o `unbind(event)` sem callback
+    // específico, que apaga TODOS os listeners daquele evento no canal — inofensivo
+    // hoje porque nada duplica o mesmo evento+canal, mas uma armadilha pra próxima
+    // feature que fizer isso. Guardamos os wrappers pra desligar exatamente eles.
+    const boundWrappers: Record<string, (data?: any) => void> = {}
+
     try {
       pusher = getPusherClient()
       channel = pusher.subscribe(channelName)
 
-      Object.entries(handlersRef.current).forEach(([event, handler]) => {
+      Object.keys(handlersRef.current).forEach((event) => {
         if (event === '__reconnected') return
-        channel.bind(event, handler)
+        const wrapper = (data?: any) => handlersRef.current[event]?.(data)
+        boundWrappers[event] = wrapper
+        channel.bind(event, wrapper)
       })
 
       pusher.connection.bind('state_change', handleStateChange)
@@ -71,9 +83,8 @@ export function usePusherChannel(channelName: string, handlers: EventHandlers) {
 
     return () => {
       try {
-        Object.keys(handlersRef.current).forEach((event) => {
-          if (event === '__reconnected') return
-          channel.unbind(event)
+        Object.keys(boundWrappers).forEach((event) => {
+          channel.unbind(event, boundWrappers[event])
         })
         pusher.connection.unbind('state_change', handleStateChange)
         pusher.unsubscribe(channelName)

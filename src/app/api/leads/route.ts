@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
 
     return Response.json({ data: result, page, limit })
   } catch (err: any) {
+    console.error('[API] GET /api/leads falhou:', err)
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }
 }
@@ -179,6 +180,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ data: lead }, { status: 201 })
   } catch (err: any) {
+    console.error('[API] POST /api/leads falhou:', err)
     return apiError(err.status || 500, err.message || 'Erro interno.')
   }
 }
