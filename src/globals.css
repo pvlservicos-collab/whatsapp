@@ -234,8 +234,11 @@ html {
 /* iPhone dá zoom automático ao focar campo com fonte < 16px — trava isso só no mobile,
    sem mudar o tamanho de fonte pretendido no design pra telas maiores. */
 @media (max-width: 767px) {
+  /* !important de propósito: qualquer classe de fonte menor (text-sm, text-xs etc)
+     tem mais especificidade que o seletor de elemento puro e venceria essa regra,
+     trazendo de volta o zoom automático — sem isso a proteção furava campo a campo. */
   input, textarea, select {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 
