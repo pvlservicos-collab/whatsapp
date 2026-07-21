@@ -78,11 +78,43 @@ function DateDivider({ label }: { label: string }) {
 }
 
 // ── Custom Audio Player ──
+
+// Gera as alturas das barrinhas de onda de forma determinística a partir da URL do
+// áudio (mesmo arquivo sempre produz o mesmo desenho) — não é uma forma de onda real
+// do sinal (decodificar cada áudio via Web Audio API teria custo real numa timeline
+// com muitas mensagens), mas dá a "assinatura visual" que o olho reconhece como
+// player de áudio do WhatsApp, em vez de uma barra de progresso lisa.
+const WAVEFORM_BAR_COUNT = 40
+function hashString(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i)
+    hash |= 0
+  }
+  return hash
+}
+function generateWaveformHeights(seed: string): number[] {
+  let s = hashString(seed) || 1
+  const next = () => {
+    // mulberry32 — PRNG simples e determinístico, suficiente pra gerar um desenho
+    // estável sem precisar de nenhuma lib extra.
+    s |= 0; s = (s + 0x6d2b79f5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  return Array.from({ length: WAVEFORM_BAR_COUNT }, () => 0.25 + next() * 0.75)
+}
+
+const PLAYBACK_RATES = [1, 1.5, 2]
+
 function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isOutgoing: boolean, senderAvatar?: string }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [rateIndex, setRateIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const waveformHeights = useMemo(() => generateWaveformHeights(url), [url]);
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -104,7 +136,14 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
+      audioRef.current.playbackRate = PLAYBACK_RATES[rateIndex];
     }
+  };
+
+  const cyclePlaybackRate = () => {
+    const nextIndex = (rateIndex + 1) % PLAYBACK_RATES.length;
+    setRateIndex(nextIndex);
+    if (audioRef.current) audioRef.current.playbackRate = PLAYBACK_RATES[nextIndex];
   };
 
   const formatAudioTime = (time: number) => {
@@ -115,6 +154,28 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
   };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const activeColor = isOutgoing ? '#fff' : 'var(--chat-accent)';
+  const mutedColor = isOutgoing ? 'rgba(255,255,255,0.35)' : 'var(--chat-border)';
+
+  const seekTo = (clientX: number, container: HTMLElement) => {
+    if (!audioRef.current || !duration) return;
+    const rect = container.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = ratio * duration;
+    setCurrentTime(ratio * duration);
+  };
+
+  const renderBars = (color: string) => (
+    <div className="flex items-center gap-[2px] h-full w-full">
+      {waveformHeights.map((h, i) => (
+        <span
+          key={i}
+          className="flex-1 rounded-full"
+          style={{ height: `${h * 100}%`, backgroundColor: color, minWidth: '2px' }}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className={`flex items-center gap-3 min-w-[220px] max-w-[320px] p-1.5 ${isOutgoing ? '' : ''}`}>
@@ -131,41 +192,29 @@ function CustomAudioPlayer({ url, isOutgoing, senderAvatar }: { url: string; isO
       </button>
 
       <div className="flex-1 flex flex-col justify-center min-w-0 mr-2">
-        <div className="relative w-full h-8 flex items-center">
-          <input
-            type="range"
-            min="0"
-            max={duration || 100}
-            value={currentTime}
-            onChange={(e) => {
-              if (audioRef.current) {
-                audioRef.current.currentTime = Number(e.target.value);
-                setCurrentTime(Number(e.target.value));
-              }
-            }}
-            className="absolute z-10 w-full h-full opacity-0 cursor-pointer"
-          />
-          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isOutgoing ? 'rgba(255,255,255,0.3)' : 'var(--chat-border)' }}>
-            <div
-              className="h-full"
-              style={{ width: `${progressPercent}%`, backgroundColor: isOutgoing ? '#fff' : 'var(--chat-accent)' }}
-            />
+        <div
+          className="relative w-full h-6 cursor-pointer"
+          onClick={(e) => seekTo(e.clientX, e.currentTarget)}
+        >
+          {/* Barras de fundo (não tocado ainda) */}
+          <div className="absolute inset-0">{renderBars(mutedColor)}</div>
+          {/* Barras "tocadas", recortadas pela largura do progresso */}
+          <div className="absolute inset-0 overflow-hidden" style={{ width: `${progressPercent}%` }}>
+            {renderBars(activeColor)}
           </div>
-          <div
-            className="absolute pointer-events-none rounded-full"
-            style={{
-              left: `calc(${progressPercent}% - 6px)`,
-              width: '12px',
-              height: '12px',
-              backgroundColor: isOutgoing ? '#fff' : 'var(--chat-accent)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-            }}
-          />
         </div>
-        <div className="flex justify-start -mt-1.5">
+        <div className="flex items-center justify-between -mt-0.5">
           <span className={`text-[11px] font-medium ${isOutgoing ? 'text-white/80' : 'text-[var(--chat-text-muted)]'}`}>
             {formatAudioTime(currentTime || duration)}
           </span>
+          {/* Botão de velocidade — cicla 1x -> 1.5x -> 2x, igual WhatsApp */}
+          <button
+            onClick={cyclePlaybackRate}
+            className={`text-[10px] font-bold px-1.5 py-[1px] rounded-full transition-colors ${isOutgoing ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-[var(--chat-bg-hover)] text-[var(--chat-text-secondary)] hover:opacity-80'}`}
+            title="Velocidade de reprodução"
+          >
+            {PLAYBACK_RATES[rateIndex]}x
+          </button>
         </div>
       </div>
 
@@ -500,7 +549,13 @@ const MessageBubble = memo(function MessageBubble({
                   <WarningCircle size={13} weight="fill" className="text-red-300" />
                 </span>
               ) : activity.metadata?.send_status === 'sent' ? (
-                <Check size={13} weight="bold" className="text-white/70" />
+                // Check duplo (✓✓) — no WhatsApp real, um check único é só o estado
+                // transitório de "saiu do celular mas ainda não confirmado pelo
+                // servidor"; o que fica a maior parte do tempo pra qualquer envio
+                // bem-sucedido é o check duplo cinza. Não temos confirmação de leitura
+                // de verdade (exigiria tratar o evento `statuses` do webhook da Meta),
+                // então não pintamos de azul — só corrigimos pro estado certo.
+                <Checks size={13} weight="bold" className="text-white/70" />
               ) : null}
             </span>
           </div>
