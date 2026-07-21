@@ -3,6 +3,7 @@ import { authenticateRequest, apiError } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { leadTags, tags } from '@/lib/schema'
 import { eq, and } from 'drizzle-orm'
+import { applyTagStageAutomation } from '@/lib/leadAutomations'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       tagId: body.tag_id,
       organizationId: auth.organizationId,
     }).onConflictDoNothing()
+    await applyTagStageAutomation(auth.organizationId, id, body.tag_id, auth.memberId)
     return Response.json({ success: true }, { status: 201 })
   } catch (err: any) { return apiError(err.status || 500, err.message || 'Erro interno.') }
 }

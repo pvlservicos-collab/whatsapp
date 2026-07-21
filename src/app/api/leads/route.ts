@@ -5,7 +5,7 @@ import { publishEvent, channels, events } from '@/lib/realtime'
 import {
   leads, leadTags, tags, organizationMembers, profiles, pipelineStages, integrations,
 } from '@/lib/schema'
-import { eq, and, isNull, desc, asc, ilike, or, sql, count } from 'drizzle-orm'
+import { eq, and, isNull, desc, asc, ilike, or, sql, count, inArray } from 'drizzle-orm'
 import { mapLead } from '@/lib/mappers'
 import { isUniqueViolation } from '@/lib/db-helpers'
 import type { Integration } from '@/lib/types'
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         })
         .from(leadTags)
         .leftJoin(tags, eq(tags.id, leadTags.tagId))
-        .where(sql`${leadTags.leadId} = ANY(${sql.raw(`ARRAY['${leadIds.join("','")}']::uuid[]`)})`)
+        .where(inArray(leadTags.leadId, leadIds))
 
       for (const t of tagsData) {
         if (!tagsMap[t.leadId]) tagsMap[t.leadId] = []

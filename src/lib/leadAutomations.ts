@@ -14,7 +14,10 @@ const TAG_STAGE_AUTOMATIONS: Record<string, string> = {
 }
 
 const ENTREGUE_STAGE_ID = '89da4ea2-094a-454a-ab4e-76450769ca68' // ENTREGUE ( POS-VENDA ) 4 cadência
-const POSVENDA_SHORTCUT = 'pos-venda'
+// Aceita variações comuns de digitação/edição do shortcut (com/sem hífen, com/sem
+// barra) — a resposta rápida já foi encontrada em produção salva como "POSVENDA"
+// (sem hífen), então casar só "pos-venda" perdia o automatismo silenciosamente.
+const POSVENDA_SHORTCUT_VARIANTS = ['pos-venda', 'posvenda', '/pos-venda', '/posvenda']
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -70,12 +73,12 @@ async function sendPosVendaMessage(organizationId: string, leadId: string) {
   const [quickReply] = await db.select().from(quickReplies)
     .where(and(
       eq(quickReplies.organizationId, organizationId),
-      or(ilike(quickReplies.shortcut, POSVENDA_SHORTCUT), ilike(quickReplies.shortcut, `/${POSVENDA_SHORTCUT}`)),
+      or(...POSVENDA_SHORTCUT_VARIANTS.map(v => ilike(quickReplies.shortcut, v))),
       isNull(quickReplies.deletedAt)
     ))
     .limit(1)
   if (!quickReply) {
-    console.error(`[pos-venda] Resposta rápida "${POSVENDA_SHORTCUT}" não encontrada — mensagem de pós-venda não enviada para lead ${leadId}.`)
+    console.error(`[pos-venda] Resposta rápida "pos-venda" não encontrada — mensagem de pós-venda não enviada para lead ${leadId}.`)
     return
   }
 

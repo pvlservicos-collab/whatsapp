@@ -5,6 +5,7 @@ import { orders, orderItems, products, orderStatusHistory } from '@/lib/schema'
 import { eq, and, inArray, isNull } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { syncLeadLastOrderAttributes } from '@/lib/db-helpers'
+import { handleOrderDelivered } from '@/lib/leadAutomations'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -136,6 +137,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       })
     }
     if (historyRows.length > 0) await db.insert(orderStatusHistory).values(historyRows)
+
+    // Dispara a automação de pós-venda (move o lead pra etapa de pós-venda +
+    // manda a resposta rápida "pos-venda") só na transição de verdade pra
+    // "delivered" — nunca de novo se o pedido já estava entregue, pra não
+    // duplicar a mensagem em cada PATCH subsequente (ex: edição de endereço).
+    if (order.leadId && body.delivery_status === 'delivered' && existing.deliveryStatus !== 'delivered') {
+      await handleOrderDelivered(auth.organizationId, order.leadId)
+    }
 
     // Mantém a etiqueta "Pago/Pendente" da lista de conversas em dia e avisa
     // quem estiver com o Chat aberto (lista + perfil do cliente) em tempo real.

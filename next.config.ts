@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 
 const config: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   images: {
@@ -32,6 +33,19 @@ const config: NextConfig = {
   // ENOENT" nos envios de áudio via API Oficial/Instagram). serverExternalPackages
   // exclui o pacote do bundling, mantendo o require() nativo do node_modules real.
   serverExternalPackages: ['ffmpeg-static'],
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ]
+  },
 }
 
 export default config

@@ -15,7 +15,11 @@ import { ChatButtonKey } from '@/hooks/useChatButtonSettings'
 interface ChatWindowProps {
   lead: LeadWithOwner
   organizationId: string
-  onMessageSent?: (content: string) => void
+  // leadId é passado explicitamente (não inferido do escopo do chamador) pra
+  // garantir, por construção, que a atualização otimista da página nunca
+  // atribua um envio ao lead errado caso a conversa exibida já tenha trocado
+  // entre o clique em enviar e a resolução desta promise.
+  onMessageSent?: (content: string, leadId: string) => void
 }
 
 export interface ReplyContext {
@@ -72,7 +76,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     }
 
     try {
-      if (onMessageSent) onMessageSent(content)
+      if (onMessageSent) onMessageSent(content, lead.id)
 
       const replyMessageId = replyContext?.messageId
       const replyPreview = replyContext ? { text: replyContext.text, sender: replyContext.sender } : undefined
@@ -98,7 +102,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     try {
       const url = await uploadClientFile(file, 'chat-media', lead.id)
 
-      if (onMessageSent) onMessageSent(caption || `[${mediaType}]`)
+      if (onMessageSent) onMessageSent(caption || `[${mediaType}]`, lead.id)
       await sendMediaMessage(url, mediaType, caption || '', file.name, file.type)
     } catch (error) {
       console.error('Failed to send media:', error)
@@ -148,7 +152,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
   }) => {
     setSendError(null)
     try {
-      if (onMessageSent) onMessageSent(qr.content || `[${qr.mediaType}]`)
+      if (onMessageSent) onMessageSent(qr.content || `[${qr.mediaType}]`, lead.id)
       await sendQuickReplyStep(qr)
     } catch (error) {
       console.error('Failed to send quick reply media:', error)
@@ -168,7 +172,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
       try {
-        if (onMessageSent) onMessageSent(step.content || (step.mediaType ? `[${step.mediaType}]` : ''))
+        if (onMessageSent) onMessageSent(step.content || (step.mediaType ? `[${step.mediaType}]` : ''), lead.id)
         await sendQuickReplyStep(step)
         // Espera configurada no passo antes de mandar o próximo — só roda enquanto
         // esta aba estiver aberta (não é durável tipo o funil, ver plano da feature).

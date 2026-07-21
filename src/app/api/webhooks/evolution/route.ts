@@ -10,6 +10,14 @@ const KNOWN_NOISE_EVENTS = new Set(['messages.update', 'messages.delete', 'messa
 
 export async function POST(req: NextRequest) {
   try {
+    // Sem isso, qualquer requisição externa que acerte um org_id válido consegue
+    // injetar mensagens inbound falsas (ou disparar respostas automáticas) em nome
+    // da organização — o endpoint não tem nenhuma outra verificação de origem.
+    const secret = req.nextUrl.searchParams.get('secret')
+    if (!secret || secret !== process.env.EVOLUTION_WEBHOOK_SECRET) {
+      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 403 })
+    }
+
     const orgId = req.nextUrl.searchParams.get('org_id')
     if (!orgId) return NextResponse.json({ ok: false, error: 'org_id ausente' }, { status: 400 })
 
