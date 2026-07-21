@@ -1,59 +1,50 @@
 /**
  * POST /api/upload
- * Emite tokens de upload direto-pro-Blob (fluxo `handleUpload` do @vercel/blob/client).
+ * Emite uma URL pré-assinada de upload direto-pro-MinIO.
  *
- * O arquivo NÃO passa mais por essa function — o navegador envia os bytes direto pro
- * Vercel Blob usando o token que essa rota autoriza. Isso existe porque Vercel Functions
- * têm um limite rígido de 4.5MB no corpo da requisição (plataforma, não configurável):
- * qualquer vídeo ou foto de celular um pouco maior era rejeitado (413) antes mesmo do
- * nosso código rodar. Ver src/lib/blobClient.ts para o lado cliente e o motivo completo.
+ * O arquivo NÃO passa por essa function — o navegador faz PUT direto na URL
+ * assinada que essa rota devolve. Ver src/lib/blobClient.ts para o lado cliente.
  */
 import { NextRequest } from 'next/server'
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { auth } from '@/lib/auth'
 import { apiError } from '@/lib/api-auth'
+import { storagePresignedPut } from '@/lib/storage'
 
-const FOLDER_LIMITS: Record<string, { maxSize: number; allowedContentTypes?: string[] }> = {
-  avatars: { maxSize: 5 * 1024 * 1024, allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
-  'org-logos': { maxSize: 5 * 1024 * 1024, allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
-  // 16MB — limite de mídia do WhatsApp; sem restrição de tipo (imagem, vídeo, áudio, documento)
-  'chat-media': { maxSize: 16 * 1024 * 1024 },
+const FOLDER_LIMITS: Record<string, { maxSize: number; allowedTypes?: string[] }> = {
+  avatars: { maxSize: 5 * 1024 * 1024, allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+  'org-logos': { maxSize: 5 * 1024 * 1024, allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+  // 16MB — limite de mídia do WhatsApp
+  'chat-media': {
+    maxSize: 16 * 1024 * 1024,
+    allowedTypes: [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/webm', 'audio/wav', 'audio/aac',
+      'video/mp4', 'video/webm', 'video/quicktime',
+      'application/pdf',
+    ],
+  },
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as HandleUploadBody
+    const session = await auth()
+    if (!session?.user) return apiError(401, 'Não autenticado.')
 
-    const jsonResponse = await handleUpload({
-      body,
-      request: req,
-      onBeforeGenerateToken: async (pathname) => {
-        // Só o pedido de token (feito pelo navegador do usuário) tem cookie de sessão —
-        // o callback abaixo (onUploadCompleted) é o servidor da própria Vercel chamando
-        // de volta depois do upload, sem sessão de usuário; exigir auth() ali quebraria
-        // esse callback sempre. A autenticidade da chamada da Vercel já é validada pela
-        // assinatura interna do handleUpload, não precisa de checagem extra aqui.
-        const session = await auth()
-        if (!session?.user) throw new Error('Não autenticado.')
+    const { folder, filename, contentType } = await req.json()
 
-        const folder = pathname.split('/')[0]
-        const limits = FOLDER_LIMITS[folder]
-        if (!limits) throw new Error('Pasta inválida. Use: avatars, org-logos ou chat-media')
+    const limits = FOLDER_LIMITS[folder]
+    if (!limits) return apiError(400, 'Pasta inválida. Use: avatars, org-logos ou chat-media')
 
-        return {
-          allowedContentTypes: limits.allowedContentTypes,
-          maximumSizeInBytes: limits.maxSize,
-          addRandomSuffix: true,
-        }
-      },
-      onUploadCompleted: async () => {
-        // Nada a fazer — o cliente já recebe a URL final na resposta do upload().
-        // (Em dev local, a Vercel não consegue chamar esse callback de volta pro
-        // localhost; isso é esperado e não afeta o upload em si.)
-      },
-    })
+    if (!filename || typeof filename !== 'string') return apiError(400, 'Nome de arquivo inválido.')
 
-    return Response.json(jsonResponse)
+    if (limits.allowedTypes && !limits.allowedTypes.includes(contentType)) {
+      return apiError(400, `Tipo de arquivo não permitido: ${contentType}`)
+    }
+
+    const key = `${folder}/${filename}`
+    const { uploadUrl, publicUrl } = await storagePresignedPut(key, contentType || 'application/octet-stream')
+
+    return Response.json({ uploadUrl, publicUrl, maxSize: limits.maxSize })
   } catch (err: any) {
     console.error('[/api/upload]', err)
     return apiError(400, err.message || 'Erro ao autorizar upload.')
