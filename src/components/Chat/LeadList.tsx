@@ -122,6 +122,43 @@ export default function LeadList({
   const menuRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  // Trava a ORDEM visível da lista enquanto o usuário está com o dedo/mouse em cima
+  // de uma linha — a lista reordena sozinha em tempo real (qualquer lead da
+  // organização recebendo mensagem nova reordena todo mundo), então sem isso uma
+  // mensagem chegando de OUTRO cliente no instante exato do clique empurra a linha
+  // certa pra baixo e o clique acerta a linha errada que subiu no lugar dela. O
+  // CONTEÚDO de cada linha (não lida, prévia, tags) continua atualizando normal —
+  // só a POSIÇÃO fica congelada até o clique/toque terminar de resolver.
+  const isOrderLockedRef = useRef(false)
+  const frozenOrderRef = useRef<string[] | null>(null)
+  const unlockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const lockOrder = useCallback((currentIds: string[]) => {
+    if (isOrderLockedRef.current) return
+    isOrderLockedRef.current = true
+    frozenOrderRef.current = currentIds
+  }, [])
+
+  const scheduleUnlock = useCallback(() => {
+    if (unlockTimeoutRef.current) clearTimeout(unlockTimeoutRef.current)
+    unlockTimeoutRef.current = setTimeout(() => {
+      isOrderLockedRef.current = false
+      frozenOrderRef.current = null
+    }, 250)
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('mouseup', scheduleUnlock)
+    window.addEventListener('touchend', scheduleUnlock)
+    window.addEventListener('touchcancel', scheduleUnlock)
+    return () => {
+      window.removeEventListener('mouseup', scheduleUnlock)
+      window.removeEventListener('touchend', scheduleUnlock)
+      window.removeEventListener('touchcancel', scheduleUnlock)
+      if (unlockTimeoutRef.current) clearTimeout(unlockTimeoutRef.current)
+    }
+  }, [scheduleUnlock])
+
   // Pull-to-refresh — só reage a puxão iniciado com a lista já no topo (scrollTop
   // 0), senão qualquer scroll normal pra cima dispararia o gesto sem querer.
   const { refetch } = useLeadsContext()
@@ -349,7 +386,23 @@ export default function LeadList({
         hit.lead.lead_tags?.some((lt: any) => selectedTagIds.includes(lt.tag_id))
       )
 
-  const visibleHits = tabFilteredHits.slice(0, displayLimit)
+  // Enquanto travado (usuário com dedo/mouse em cima da lista), reordena os hits
+  // FRESCOS (conteúdo atualizado normalmente) seguindo a sequência de ids congelada
+  // no início da interação — em vez da ordem nova que acabou de vir do fetch. Leads
+  // que não estavam na sequência congelada (raro, chegaram durante a trava) entram
+  // no fim, sem empurrar nada que já está visível.
+  const orderedHits = (() => {
+    if (!isOrderLockedRef.current || !frozenOrderRef.current) return tabFilteredHits
+    const hitsById = new Map(tabFilteredHits.map((hit) => [hit.lead.id, hit]))
+    const frozen: SearchHit[] = []
+    for (const id of frozenOrderRef.current) {
+      const hit = hitsById.get(id)
+      if (hit) { frozen.push(hit); hitsById.delete(id) }
+    }
+    return [...frozen, ...hitsById.values()]
+  })()
+
+  const visibleHits = orderedHits.slice(0, displayLimit)
 
   return (
     <div className="flex flex-col h-full border-r border-[var(--chat-border)] bg-[var(--chat-bg-base)]">
@@ -438,6 +491,8 @@ export default function LeadList({
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll relative"
+        onMouseDownCapture={() => lockOrder(orderedHits.map((hit) => hit.lead.id))}
+        onTouchStartCapture={() => lockOrder(orderedHits.map((hit) => hit.lead.id))}
         onTouchStart={handlePullTouchStart}
         onTouchMove={handlePullTouchMove}
         onTouchEnd={handlePullTouchEnd}
