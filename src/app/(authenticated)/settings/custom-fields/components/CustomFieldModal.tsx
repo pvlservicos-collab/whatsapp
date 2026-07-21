@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { CustomFieldCategory, CustomFieldDefinition } from '@/lib/types'
-import { X, Plus, Trash, CaretDown, Check } from '@phosphor-icons/react'
+import { Plus, Trash, CaretDown, Check } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Option {
     value: string
@@ -178,18 +179,16 @@ export function CustomFieldModal({ isOpen, onClose, field, categories, onSubmit,
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 modal-overlay-enter p-4">
-            <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] modal-content-enter">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/50 modal-overlay-enter p-0 md:p-4">
+            <div className="app-safe-bottom sheet-enter bg-white rounded-t-2xl md:rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] modal-content-enter">
+                <div className="md:hidden flex justify-center pt-2 pb-1 shrink-0">
+                    <div className="w-10 h-1 rounded-full bg-gray-300" />
+                </div>
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <h2 className="text-lg font-bold font-display text-gray-900">
                         {field ? 'Editar Campo' : 'Novo Campo'}
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                    >
-                        <X size={20} weight="bold" />
-                    </button>
+                    <HeaderBackButton onClick={onClose} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">

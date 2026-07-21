@@ -220,7 +220,21 @@ html {
    sem mudar o tamanho de fonte pretendido no design pra telas maiores. */
 @media (max-width: 767px) {
   input, textarea, select {
-    font-size: 16px;
+    /* !important necessário pra vencer classes Tailwind (text-sm/text-xs) dos
+       componentes, que têm especificidade maior que o seletor de elemento puro
+       e sem isso voltam a disparar o zoom automático do iOS. */
+    font-size: 16px !important;
+  }
+}
+
+/* Animação de slide-up-from-bottom pros modais mobile viraram bottom sheets. */
+@media (max-width: 767px) {
+  @keyframes sheet-enter {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .sheet-enter {
+    animation: sheet-enter 0.25s ease-out;
   }
 }
 

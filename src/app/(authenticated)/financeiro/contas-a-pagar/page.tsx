@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import {
-  Receipt, Plus, PencilSimple, Trash, X, Check, CheckCircle,
+  Receipt, Plus, PencilSimple, Trash, Check, CheckCircle,
   Clock, WarningCircle, ArrowsClockwise, ArrowCounterClockwise,
 } from '@phosphor-icons/react'
 import { EXPENSE_CATEGORY_OPTIONS, EXPENSE_CATEGORY_LABELS } from '@/lib/expense-categories'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface Expense {
   id: string
@@ -387,15 +388,16 @@ export default function ContasAPagarPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="app-safe-bottom sheet-enter bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
+            <div className="md:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="text-base font-bold text-gray-900">
                 {editing ? 'Editar despesa' : 'Nova despesa'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={20} />
-              </button>
+              <HeaderBackButton onClick={() => setShowModal(false)} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
             </div>
 
             <div className="p-5 space-y-4">

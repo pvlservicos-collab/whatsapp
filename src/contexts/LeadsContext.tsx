@@ -17,6 +17,7 @@ interface LeadsContextType {
   error: string | null
   stageStats: Record<string, StageStats>
   moveLeadToStage: (leadId: string, newStageId: string, oldStageId?: string, memberId?: string) => Promise<void>
+  refetch: () => Promise<void>
 }
 
 const LeadsContext = createContext<LeadsContextType | undefined>(undefined)
@@ -100,8 +101,12 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
     []
   )
 
+  // Puxado pelo gesto de "puxar pra atualizar" no celular (padrão nativo) — sem
+  // showLoading, pra não piscar o spinner de tela cheia numa lista que já tem dados.
+  const refetch = useCallback(() => fetchLeads(false), [organizationId, currentOrganization?.id, permissions])
+
   return (
-    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage }}>
+    <LeadsContext.Provider value={{ leads, setLeads, loading, error, stageStats, moveLeadToStage, refetch }}>
       {children}
     </LeadsContext.Provider>
   )

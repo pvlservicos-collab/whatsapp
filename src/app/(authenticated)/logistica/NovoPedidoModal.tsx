@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Plus, Minus, MapPin, Check, Calendar } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 import { PAYMENT_METHOD_META, PAYMENT_STATUS_META, DELIVERY_STATUS_META } from '@/lib/orderStatus'
 
 interface Product {
@@ -162,12 +163,15 @@ export default function NovoPedidoModal({ onClose, onSuccess }: NovoPedidoModalP
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="bg-white border border-gray-100 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="app-safe-bottom sheet-enter bg-white border border-gray-100 rounded-t-2xl md:rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">Novo pedido</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">

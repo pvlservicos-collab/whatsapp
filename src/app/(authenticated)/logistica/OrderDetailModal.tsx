@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, MapPin, WhatsappLogo, IdentificationCard, EnvelopeSimple, Phone, PencilSimple, Motorcycle } from '@phosphor-icons/react'
+import { MapPin, WhatsappLogo, IdentificationCard, EnvelopeSimple, Phone, PencilSimple, Motorcycle } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 import { buildDeliveryWhatsAppLink } from './whatsapp'
 import { PAYMENT_STATUS_META, DELIVERY_STATUS_META, PAYMENT_METHOD_META, TONE_STYLES, StatusTone } from '@/lib/orderStatus'
 
@@ -223,14 +224,17 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onUpdat
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="bg-white border border-gray-100 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="app-safe-bottom sheet-enter bg-white border border-gray-100 rounded-t-2xl md:rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="md:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{order.customer_name || 'Cliente'}</h2>
             <p className="text-xs text-gray-400">Pedido de {formatDateTime(order.created_at)}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
+          <HeaderBackButton onClick={onClose} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">

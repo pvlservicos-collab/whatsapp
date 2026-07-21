@@ -25,7 +25,7 @@ import StageColumn from './StageColumn'
 import LeadCard from './LeadCard'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { LeadDetailsSidebar } from '@/components/Chat'
-import { X } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface PipelineBoardProps {
   organizationId: string
@@ -468,16 +468,17 @@ export default function PipelineBoard({ organizationId, filters }: PipelineBoard
 
       {/* Mobile: "mover para" — alternativa ao arrastar entre etapas */}
       {movingLead && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="app-safe-bottom sheet-enter bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl border border-gray-100">
+            <div className="sm:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="text-base font-bold text-gray-900">Mover lead</h2>
                 <p className="text-xs text-gray-500 mt-0.5 truncate">{movingLead.title}</p>
               </div>
-              <button onClick={() => setMovingLead(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={20} />
-              </button>
+              <HeaderBackButton onClick={() => setMovingLead(null)} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
             </div>
             <div className="p-2 max-h-[60vh] overflow-y-auto">
               {stages.map(stage => (

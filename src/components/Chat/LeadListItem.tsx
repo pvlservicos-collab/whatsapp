@@ -1,8 +1,8 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useRef, useState } from 'react'
 import { LeadWithOwner, SearchHit } from '@/lib/types'
-import { Robot, PushPin } from '@phosphor-icons/react'
+import { Robot, PushPin, Archive } from '@phosphor-icons/react'
 import { getInitials, formatPhone, renderSnippet } from '@/lib/utils'
 import IntegrationBadge from '@/components/Shared/IntegrationBadge'
 import LeadBadges from '@/components/Shared/LeadBadges'
@@ -13,11 +13,17 @@ interface LeadListItemProps {
     isSelected: boolean
     onClick: (lead: LeadWithOwner) => void
     onContextMenu: (e: React.MouseEvent, lead: LeadWithOwner) => void
+    onArchive?: (lead: LeadWithOwner) => void
     timeStr: string
     hit?: SearchHit
     query?: string
     hideReplyHighlight?: boolean
 }
+
+// Distância de arrasto (px) pra soltar e considerar "arquivar" — abaixo disso volta
+// pro lugar. O ícone de arquivar por trás do card só aparece proporcionalmente ao
+// quanto já foi arrastado (nunca em opacidade total antes do usuário puxar de verdade).
+const ARCHIVE_TRIGGER_THRESHOLD = 80
 
 const PAYMENT_METHOD_TAGS: Record<string, { label: string; style: React.CSSProperties }> = {
     pix: { label: 'PIX', style: { backgroundColor: 'rgba(34,197,94,0.15)', color: '#4ade80' } },
@@ -30,9 +36,57 @@ const PAYMENT_STATUS_TAGS: Record<string, { label: string; style: React.CSSPrope
     Object.entries(PAYMENT_STATUS_META).map(([value, meta]) => [value, { label: meta.label, style: TONE_STYLES[meta.tone] }])
 )
 
-const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, query, hideReplyHighlight }: LeadListItemProps) => {
+const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, onArchive, timeStr, hit, query, hideReplyHighlight }: LeadListItemProps) => {
     const defaultMsg = lead.last_activity_type ? 'Ver conversa' : 'Sem mensagens'
     const lastMsg = lead.last_message_content || defaultMsg
+
+    // Swipe-to-archive (padrão WhatsApp) — só ativo quando o pai passa onArchive.
+    const [dragX, setDragX] = useState(0)
+    const [isDragging, setIsDragging] = useState(false)
+    const touchStartX = useRef(0)
+    const touchStartY = useRef(0)
+    const isHorizontalSwipe = useRef<boolean | null>(null)
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (!onArchive) return
+        touchStartX.current = e.touches[0].clientX
+        touchStartY.current = e.touches[0].clientY
+        isHorizontalSwipe.current = null
+    }
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!onArchive) return
+        const dx = e.touches[0].clientX - touchStartX.current
+        const dy = e.touches[0].clientY - touchStartY.current
+
+        // Só decide uma vez, no primeiro movimento perceptível — sem isso um scroll
+        // vertical da lista com um pixel de deriva horizontal já disparava o "modo
+        // arrastar" e travava o scroll da lista inteira.
+        if (isHorizontalSwipe.current === null) {
+            if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+            isHorizontalSwipe.current = Math.abs(dx) > Math.abs(dy)
+        }
+        if (!isHorizontalSwipe.current) return
+
+        e.preventDefault()
+        setIsDragging(true)
+        // Só arrasta pra esquerda (arquivar) — puxar pra direita não faz nada, nem
+        // no WhatsApp real.
+        setDragX(Math.min(0, dx))
+    }
+
+    const handleTouchEnd = () => {
+        if (!onArchive) return
+        if (Math.abs(dragX) >= ARCHIVE_TRIGGER_THRESHOLD) {
+            onArchive(lead)
+        }
+        setDragX(0)
+        setIsDragging(false)
+        isHorizontalSwipe.current = null
+    }
+
+    const visibleTags = (lead.lead_tags || []).slice(0, 2)
+    const extraTagsCount = (lead.lead_tags?.length || 0) - visibleTags.length
 
     const orderPaymentMethod = lead.custom_attributes?.last_order_payment_method as string | undefined
     const orderPaymentStatus = lead.custom_attributes?.last_order_payment_status as string | undefined
@@ -53,12 +107,25 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
             ? 'linear-gradient(to right, rgba(45,212,191,0.35), transparent 80%)'
             : undefined)
 
+    const archiveRevealOpacity = Math.min(1, Math.abs(dragX) / ARCHIVE_TRIGGER_THRESHOLD)
+
     return (
-        <div className="w-full flex-shrink-0 relative">
+        <div className="w-full flex-shrink-0 relative overflow-hidden">
+            {onArchive && (
+                <div
+                    className="absolute inset-0 flex items-center justify-end pr-6 bg-red-500"
+                    style={{ opacity: archiveRevealOpacity }}
+                >
+                    <Archive size={20} weight="bold" className="text-white" />
+                </div>
+            )}
             <button
                 onClick={() => onClick(lead)}
                 onContextMenu={(e) => onContextMenu(e, lead)}
-                className={`w-full text-left px-4 py-3 border-b border-[var(--chat-bg-hover)] transition-colors ${isSelected
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className={`relative w-full text-left px-4 py-3 border-b border-[var(--chat-bg-hover)] ${isDragging ? '' : 'transition-transform'} ${isSelected
                     ? 'bg-[var(--chat-bg-hover)] border-l-[3px] border-l-[var(--chat-accent)]'
                     : lead.last_message_sender_type === 'lead'
                         ? 'hover:bg-[var(--chat-bg-panel)] border-l-[3px]'
@@ -67,6 +134,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                 style={{
                     ...(unreadGradient ? { background: unreadGradient } : {}),
                     ...(!isSelected && lead.last_message_sender_type === 'lead' ? { borderLeftColor: '#f59e0b' } : {}),
+                    transform: `translateX(${dragX}px)`,
                 }}
             >
                 <div className="flex items-center gap-3 w-full">
@@ -120,9 +188,11 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                             </div>
                         )}
 
-                        {/* Order status tags + lead tags — badges de grupo/canal já saíram daqui, ficam do lado do nome */}
-                        {(orderPaymentMethod || (lead.lead_tags && lead.lead_tags.length > 0)) && (
-                            <div className="flex flex-wrap gap-1 mt-1.5 items-center">
+                        {/* Order status tags + lead tags — badges de grupo/canal já saíram daqui, ficam do lado do nome.
+                            Opacidade reduzida e no máx. 2 tags (+N pro resto) — a lista inteira de tags
+                            brigando por atenção deixava a linha poluída/difícil de escanear rápido. */}
+                        {(orderPaymentMethod || visibleTags.length > 0) && (
+                            <div className="flex flex-wrap gap-1 mt-1.5 items-center opacity-80">
                                 {orderPaymentMethod && PAYMENT_METHOD_TAGS[orderPaymentMethod] && (
                                     <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0" style={PAYMENT_METHOD_TAGS[orderPaymentMethod].style}>
                                         {PAYMENT_METHOD_TAGS[orderPaymentMethod].label}
@@ -133,7 +203,7 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                                         {PAYMENT_STATUS_TAGS[orderPaymentStatus].label}
                                     </span>
                                 )}
-                                {lead.lead_tags && lead.lead_tags.map((lt: any) => {
+                                {visibleTags.map((lt: any) => {
                                     const tag = lt.tag
                                     if (!tag) return null
                                     const isHex = tag.color?.startsWith('#')
@@ -147,6 +217,9 @@ const LeadListItem = ({ lead, isSelected, onClick, onContextMenu, timeStr, hit, 
                                         </span>
                                     )
                                 })}
+                                {extraTagsCount > 0 && (
+                                    <span className="text-[9px] font-bold text-[var(--chat-text-tertiary)] px-1">+{extraTagsCount}</span>
+                                )}
                             </div>
                         )}
                     </div>

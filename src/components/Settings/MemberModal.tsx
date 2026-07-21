@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, SpinnerGap, Trash } from '@phosphor-icons/react'
+import { SpinnerGap, Trash } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface MemberModalProps {
   organizationId: string
@@ -85,11 +86,14 @@ export default function MemberModal({ organizationId, member, onClose }: MemberM
   return createPortal(
     <div className="fixed inset-0 z-[100]">
       <div className="absolute inset-0 bg-black/50 modal-overlay-enter" onClick={() => onClose()} />
-      <div className="flex items-center justify-center min-h-screen p-4 pointer-events-none">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden modal-content-enter pointer-events-auto relative z-10">
+      <div className="flex items-end md:items-center justify-center min-h-screen p-0 md:p-4 pointer-events-none">
+        <div className="app-safe-bottom sheet-enter bg-white rounded-t-xl md:rounded-xl shadow-xl w-full max-w-md overflow-hidden modal-content-enter pointer-events-auto relative z-10">
+          <div className="md:hidden flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-300" />
+          </div>
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h2 className="text-lg font-bold text-gray-900">{isEditing ? 'Editar Membro' : 'Novo Membro'}</h2>
-            <button onClick={() => onClose()} className="text-gray-400 hover:text-gray-600 transition-colors p-1"><X className="w-5 h-5" /></button>
+            <HeaderBackButton onClick={() => onClose()} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">{error}</div>}

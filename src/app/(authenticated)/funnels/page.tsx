@@ -192,8 +192,11 @@ export default function FunnelsPage() {
       </div>
 
       {showNewModal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setShowNewModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/30 flex items-end md:items-center justify-center z-50" onClick={() => setShowNewModal(false)}>
+          <div className="app-safe-bottom sheet-enter bg-white rounded-t-xl md:rounded-xl shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="md:hidden flex justify-center -mt-4 mb-2">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
             <h2 className="text-base font-bold text-gray-900 mb-4">Novo Funil</h2>
 
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Nome</label>

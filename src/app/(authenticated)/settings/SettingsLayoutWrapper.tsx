@@ -58,9 +58,14 @@ export default function SettingsLayoutWrapper({
         return (
             <SettingsAccessGuard>
                 <div className="bg-gray-50 min-h-[calc(100dvh-3.5rem)]">
-                    <div className="sticky top-14 z-10 bg-white border-b border-gray-200 px-4 h-12 flex items-center">
-                        <Link href="/settings" className="flex items-center gap-1.5 text-sm font-medium text-gray-600">
-                            <CaretLeft size={16} weight="bold" />
+                    <div className="app-safe-top sticky top-14 z-10 bg-white border-b border-gray-200 px-4 min-h-12 flex items-center">
+                        {/* Link com h-full pra ocupar a linha inteira como alvo de toque —
+                            sem isso só o texto/ícone (bem menor que os 48px da linha) reagia
+                            ao toque, deixando o "voltar" difícil de acertar no celular. */}
+                        <Link href="/settings" className="app-tap-target h-full flex items-center gap-1.5 text-sm font-medium text-gray-600">
+                            <span className="w-11 h-11 -ml-3 flex items-center justify-center flex-shrink-0">
+                                <CaretLeft size={20} weight="bold" />
+                            </span>
                             Configurações
                         </Link>
                     </div>

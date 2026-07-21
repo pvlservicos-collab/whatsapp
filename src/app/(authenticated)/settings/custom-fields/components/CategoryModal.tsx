@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { CustomFieldCategory } from '@/lib/types'
-import { X } from '@phosphor-icons/react'
+import HeaderBackButton from '@/components/Shared/HeaderBackButton'
 
 interface CategoryModalProps {
     isOpen: boolean
@@ -51,18 +51,16 @@ export function CategoryModal({ isOpen, onClose, category, onSubmit, onDelete }:
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 modal-overlay-enter p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl modal-content-enter">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/50 modal-overlay-enter p-0 md:p-4">
+            <div className="app-safe-bottom sheet-enter bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md overflow-hidden shadow-2xl modal-content-enter">
+                <div className="md:hidden flex justify-center pt-2 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-gray-300" />
+                </div>
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <h2 className="text-lg font-bold font-display text-gray-900">
                         {category ? 'Editar Categoria' : 'Nova Categoria'}
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                    >
-                        <X size={20} weight="bold" />
-                    </button>
+                    <HeaderBackButton onClick={onClose} icon="close" variant="light" className="w-9 h-9 min-w-9 min-h-9" />
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">

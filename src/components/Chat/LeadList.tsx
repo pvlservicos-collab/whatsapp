@@ -8,8 +8,13 @@ import { useSession } from 'next-auth/react'
 import { useLeadSearch } from '@/hooks/useLeadSearch'
 import { useTags } from '@/hooks'
 import { getLeadChannel } from '@/lib/leadChannel'
+import { useLeadsContext } from '@/contexts/LeadsContext'
 import LeadListItem from './LeadListItem'
 import ChatFilterTabs, { type ChatTab } from './ChatFilterTabs'
+
+// Distância de puxão (px) pra soltar e disparar o refresh — padrão nativo (Instagram,
+// WhatsApp): abaixo disso o indicador volta sem atualizar nada.
+const PULL_TO_REFRESH_THRESHOLD = 70
 
 interface LeadListProps {
   leads: LeadWithOwner[]
@@ -116,6 +121,56 @@ export default function LeadList({
   }, [])
   const menuRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Pull-to-refresh — só reage a puxão iniciado com a lista já no topo (scrollTop
+  // 0), senão qualquer scroll normal pra cima dispararia o gesto sem querer.
+  const { refetch } = useLeadsContext()
+  const [pullDistance, setPullDistance] = useState(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const pullStartY = useRef<number | null>(null)
+
+  const handlePullTouchStart = (e: React.TouchEvent) => {
+    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
+      pullStartY.current = e.touches[0].clientY
+    } else {
+      pullStartY.current = null
+    }
+  }
+
+  const handlePullTouchMove = (e: React.TouchEvent) => {
+    if (pullStartY.current === null || isRefreshing) return
+    const dy = e.touches[0].clientY - pullStartY.current
+    if (dy <= 0) { setPullDistance(0); return }
+    // Só assume o gesto (e trava o scroll nativo) depois de um puxão real —
+    // um toque parado ou tremor de dedo não deve prender a rolagem da lista.
+    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop > 0) return
+    e.preventDefault()
+    setPullDistance(Math.min(dy * 0.5, 100))
+  }
+
+  const handlePullTouchEnd = async () => {
+    if (pullDistance >= PULL_TO_REFRESH_THRESHOLD && !isRefreshing) {
+      setIsRefreshing(true)
+      await refetch()
+      setIsRefreshing(false)
+    }
+    setPullDistance(0)
+    pullStartY.current = null
+  }
+
+  const archiveLead = useCallback(async (lead: LeadWithOwner) => {
+    if (onUpdateLead) onUpdateLead(lead.id, { is_archived: true })
+    try {
+      await fetch(`/api/leads/${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_archived: true }) })
+    } catch (err) {
+      console.error('Failed to archive lead via swipe', err)
+      if (onUpdateLead) onUpdateLead(lead.id, { is_archived: false })
+    }
+  }, [onUpdateLead])
+
+  const handleSwipeArchive = useCallback((lead: LeadWithOwner) => {
+    archiveLead(lead)
+  }, [archiveLead])
 
   const INITIAL_DISPLAY = 20
   const DISPLAY_INCREMENT = 15
@@ -380,7 +435,21 @@ export default function LeadList({
       <ChatFilterTabs activeTab={activeTab} onChange={setActiveTab} counts={tabCounts} />
 
       {/* Leads List */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden chat-dark-scroll relative"
+        onTouchStart={handlePullTouchStart}
+        onTouchMove={handlePullTouchMove}
+        onTouchEnd={handlePullTouchEnd}
+      >
+        {(pullDistance > 0 || isRefreshing) && (
+          <div
+            className="flex items-center justify-center overflow-hidden transition-[height]"
+            style={{ height: isRefreshing ? 40 : pullDistance }}
+          >
+            <LoadingSpinner size="sm" />
+          </div>
+        )}
         {tabFilteredHits.length === 0 ? (
           <div className="flex items-center justify-center h-full text-[var(--chat-text-muted)] text-sm">
             {searching ? 'Buscando…' : 'Nenhum lead encontrado'}
@@ -401,6 +470,7 @@ export default function LeadList({
                   timeStr={timeStr}
                   onClick={handleLeadClick}
                   onContextMenu={handleContextMenu}
+                  onArchive={activeTab === 'archived' ? undefined : handleSwipeArchive}
                   hit={hit}
                   query={search}
                   hideReplyHighlight={hideReplyHighlight}
