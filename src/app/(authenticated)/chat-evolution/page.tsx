@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth, useStageHistory, useLeadPipelineStages, usePipeline } from '@/hooks'
 import { useLeadsContext } from '@/contexts/LeadsContext'
@@ -35,6 +35,10 @@ export default function ChatEvolutionPage() {
   })
 
   const [selectedLead, setSelectedLead] = useState<LeadWithOwner | null>(null)
+  // Ver chat/page.tsx: trava a seleção inicial num lead concreto, pra não
+  // "seguir" a reordenação por atividade recente sempre que qualquer admin
+  // mandar mensagem em qualquer lead (bug: conversa troca sozinha).
+  const hasPinnedInitialLeadRef = useRef(false)
 
   useEffect(() => {
     if (!leadIdFromUrl) return
@@ -51,6 +55,15 @@ export default function ChatEvolutionPage() {
     })()
     return () => { cancelled = true }
   }, [leadIdFromUrl, globalLeads, selectedLead?.id])
+
+  useEffect(() => {
+    if (hasPinnedInitialLeadRef.current) return
+    if (leadIdFromUrl) return
+    if (selectedLead) { hasPinnedInitialLeadRef.current = true; return }
+    if (allLeads.length === 0) return
+    setSelectedLead(allLeads[0])
+    hasPinnedInitialLeadRef.current = true
+  }, [allLeads, selectedLead, leadIdFromUrl])
 
   const displayedLeadId = selectedLead?.id || (allLeads.length > 0 ? allLeads[0].id : null)
   const displayedLead = allLeads.find(l => l.id === displayedLeadId) || selectedLead
@@ -116,13 +129,15 @@ export default function ChatEvolutionPage() {
     }
   }, [setLeads, selectedLead])
 
-  const handleChatMessageSent = useCallback((content: string) => {
+  const handleChatMessageSent = useCallback((content: string, leadId: string) => {
     const memberId = currentOrganization?.id || ''
     const fullName = profileName || user?.name || user?.email || ''
-    const leadId = displayedLead?.id
+    // Usa o leadId recebido do ChatWindow, nunca `displayedLead` do escopo —
+    // evita atribuir o envio/dono a um lead diferente do que foi de fato enviado.
+    const targetLead = allLeads.find(l => l.id === leadId)
     // Só assume automaticamente quem respondeu se o lead ainda não tem responsável —
     // nunca sobrescreve uma atribuição manual feita por outra pessoa.
-    const alreadyHasOwner = !!displayedLead?.owner_member_id
+    const alreadyHasOwner = !!targetLead?.owner_member_id
 
     setLeads(prev => prev.map(l => {
       if (l.id !== leadId) return l
@@ -158,7 +173,7 @@ export default function ChatEvolutionPage() {
         body: JSON.stringify({ owner_member_id: memberId }),
       }).catch((err) => console.error('Failed to auto-assign owner:', err))
     }
-  }, [displayedLead, selectedLead, setLeads, currentOrganization, user, profileName])
+  }, [allLeads, selectedLead, setLeads, currentOrganization, user, profileName])
 
   const handleUpdateLead = useCallback((leadId: string, updates: Partial<LeadWithOwner>) => {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l))
@@ -201,6 +216,7 @@ export default function ChatEvolutionPage() {
       <div className="flex-1 min-w-0">
         {displayedLead ? (
           <ChatWindow
+            key={displayedLead.id}
             lead={displayedLead}
             organizationId={organizationId}
             onMessageSent={handleChatMessageSent}
