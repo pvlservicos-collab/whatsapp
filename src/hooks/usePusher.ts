@@ -81,8 +81,19 @@ export function usePusherChannel(channelName: string, handlers: EventHandlers) {
       return
     }
 
+    // Celular costuma congelar os temporizadores de uma aba/app em segundo plano
+    // (tela bloqueada, troca de app) — o próprio mecanismo de heartbeat do Pusher
+    // pode demorar bastante pra perceber que a conexão caiu nesse meio tempo.
+    // Ao voltar a ficar visível, força o mesmo caminho já usado pra reconexão
+    // (refaz a busca), sem esperar o Pusher perceber sozinho.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') handlersRef.current['__reconnected']?.()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       try {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
         Object.keys(boundWrappers).forEach((event) => {
           channel.unbind(event, boundWrappers[event])
         })
