@@ -10,6 +10,7 @@
  *   Verify Token: valor de FACEBOOK_WEBHOOK_VERIFY_TOKEN
  */
 import { NextRequest, after } from 'next/server'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { db } from '@/lib/db'
 import { leads, leadActivities, pipelineStages, integrationMessageLogs, integrations } from '@/lib/schema'
 import { eq, and, isNull, ilike, asc, sql } from 'drizzle-orm'
@@ -265,9 +266,36 @@ async function handleInstagramEntry(entry: any) {
   return Response.json({ status: 'ok' })
 }
 
+/**
+ * Valida a assinatura HMAC-SHA256 que a Meta envia no header X-Hub-Signature-256,
+ * calculada sobre o corpo cru da requisição usando o App Secret do app do Facebook.
+ * Sem isso, qualquer requisição que acerte um org_id/waba_id válido conseguiria
+ * forjar mensagens inbound e disparar respostas/envios reais em nome da organização.
+ */
+function isValidMetaSignature(rawBody: string, signatureHeader: string | null, appSecret: string): boolean {
+  if (!signatureHeader?.startsWith('sha256=')) return false
+
+  const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex')
+  const expectedBuffer = Buffer.from(expected, 'hex')
+  const providedBuffer = Buffer.from(signatureHeader.slice('sha256='.length), 'hex')
+
+  return expectedBuffer.length === providedBuffer.length && timingSafeEqual(expectedBuffer, providedBuffer)
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const rawBody = await req.text()
+
+    const appSecret = process.env.FACEBOOK_APP_SECRET
+    if (!appSecret) {
+      console.error('[Facebook Webhook] FACEBOOK_APP_SECRET não configurada — recusando requisição.')
+      return new Response('Forbidden', { status: 403 })
+    }
+    if (!isValidMetaSignature(rawBody, req.headers.get('x-hub-signature-256'), appSecret)) {
+      return new Response('Forbidden', { status: 403 })
+    }
+
+    const body = JSON.parse(rawBody)
 
     const entry = body.entry?.[0]
 
