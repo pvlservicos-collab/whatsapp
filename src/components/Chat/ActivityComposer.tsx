@@ -58,6 +58,9 @@ interface ActivityComposerProps {
   fireWebhook?: (key: ChatButtonKey) => Promise<boolean>
   organizationId?: string | null
   lead?: { title?: string | null; phone?: string | null }
+  /** Instagram Direct não tem suporte a anexo de áudio na API de envio da Meta —
+   * esconde o microfone pra não deixar o vendedor tentar algo que sempre falha. */
+  channel?: 'whatsapp' | 'instagram' | 'other'
 }
 
 function formatDuration(ms: number): string {
@@ -86,7 +89,9 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
   fireWebhook,
   organizationId,
   lead,
+  channel,
 }, ref) {
+  const supportsAudio = channel !== 'instagram'
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
@@ -695,8 +700,11 @@ const ActivityComposer = forwardRef<ActivityComposerHandle, ActivityComposerProp
               style={{ maxHeight: '160px' }}
             />
             {/* Alterna mic/enviar igual WhatsApp: só mostra "enviar" quando há
-                mídia pendente ou texto digitado; caso contrário, grava áudio. */}
-            {!pendingMedia && !content.trim() ? (
+                mídia pendente ou texto digitado; caso contrário, grava áudio.
+                Instagram Direct não aceita anexo de áudio na API da Meta — o
+                microfone some (fica só o botão de enviar, desabilitado) pra
+                não deixar o vendedor tentar algo que sempre falha. */}
+            {!pendingMedia && !content.trim() && supportsAudio ? (
               <button
                 type="button"
                 onClick={handleMicClick}

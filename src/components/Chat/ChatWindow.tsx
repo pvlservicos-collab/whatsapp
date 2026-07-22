@@ -6,6 +6,7 @@ import { useLeadActivities, useAuth, useChatButtonSettings } from '@/hooks'
 import { usePinnedMessages } from '@/hooks/usePinnedMessages'
 import { uploadClientFile } from '@/lib/blobClient'
 import { LeadWithOwner, LeadActivityWithActor } from '@/lib/types'
+import { getLeadChannel } from '@/lib/leadChannel'
 import ActivityTimeline from './ActivityTimeline'
 import ActivityComposer, { ActivityComposerHandle } from './ActivityComposer'
 import PinnedMessagesBar from './PinnedMessagesBar'
@@ -274,6 +275,7 @@ export default function ChatWindow({ lead, organizationId, onMessageSent }: Chat
         onSendQuickReplySequence={handleSendQuickReplySequence}
         organizationId={organizationId}
         lead={{ title: lead.title, phone: lead.phone }}
+        channel={getLeadChannel(lead)}
         replyContext={replyContext}
         onCancelReply={() => setReplyContext(null)}
         chatButtonSettings={chatButtonSettings}
