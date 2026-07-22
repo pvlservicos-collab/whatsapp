@@ -42,6 +42,33 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 }
 
+export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
+    const auth = await authenticateRequest(req)
+    const { member_id } = await params
+    const body = await req.json()
+
+    if (typeof body.participates_in_lead_distribution !== 'boolean') {
+      return apiError(400, 'Campo participates_in_lead_distribution deve ser booleano.')
+    }
+
+    const [member] = await db.select({ id: organizationMembers.id })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.id, member_id), eq(organizationMembers.organizationId, auth.organizationId)))
+      .limit(1)
+
+    if (!member) return apiError(404, 'Membro não encontrado.')
+
+    await db.update(organizationMembers)
+      .set({ participatesInLeadDistribution: body.participates_in_lead_distribution })
+      .where(eq(organizationMembers.id, member_id))
+
+    return Response.json({ success: true })
+  } catch (err: any) {
+    return apiError(err.status || 500, err.message || 'Erro interno.')
+  }
+}
+
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const auth = await authenticateRequest(req)

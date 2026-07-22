@@ -15,9 +15,26 @@ export interface MemberData {
   role_id: string
   status: string
   created_at: string
+  participates_in_lead_distribution: boolean
   profiles: { full_name: string; avatar_url: string; email: string }
   organization_roles: { name: string }
 }
+
+const CustomSwitch = ({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) => (
+  <button
+    type="button"
+    onClick={onChange}
+    disabled={disabled}
+    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${checked ? 'bg-blue-600' : 'bg-gray-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    role="switch"
+    aria-checked={checked}
+  >
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+    />
+  </button>
+)
 
 export default function MembersPanel({ organizationId }: MembersPanelProps) {
   const [members, setMembers] = useState<MemberData[]>([])
@@ -25,6 +42,7 @@ export default function MembersPanel({ organizationId }: MembersPanelProps) {
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<MemberData | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const fetchMembers = async () => {
     setLoading(true)
@@ -49,6 +67,25 @@ export default function MembersPanel({ organizationId }: MembersPanelProps) {
     m.profiles?.email?.toLowerCase().includes(search.toLowerCase()) ||
     m.organization_roles?.name?.toLowerCase().includes(search.toLowerCase())
   )
+
+  const handleToggleDistribution = async (member: MemberData) => {
+    const next = !member.participates_in_lead_distribution
+    setTogglingId(member.id)
+    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, participates_in_lead_distribution: next } : m))
+    try {
+      const res = await fetch(`/api/users/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participates_in_lead_distribution: next }),
+      })
+      if (!res.ok) throw new Error('Falha ao atualizar')
+    } catch (error) {
+      console.error('Failed to toggle lead distribution:', error)
+      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, participates_in_lead_distribution: !next } : m))
+    } finally {
+      setTogglingId(null)
+    }
+  }
 
   const handleEdit = (member: MemberData) => { setSelectedMember(member); setIsModalOpen(true) }
   const handleAddNew = () => { setSelectedMember(null); setIsModalOpen(true) }
@@ -82,6 +119,7 @@ export default function MembersPanel({ organizationId }: MembersPanelProps) {
                 <th className="px-6 py-4">Usuário</th>
                 <th className="px-6 py-4">Cargo</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Recebe leads automaticamente</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -112,6 +150,13 @@ export default function MembersPanel({ organizationId }: MembersPanelProps) {
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Ativo
                     </span>
                   </td>
+                  <td className="px-6 py-4">
+                    <CustomSwitch
+                      checked={member.participates_in_lead_distribution}
+                      onChange={() => handleToggleDistribution(member)}
+                      disabled={togglingId === member.id}
+                    />
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => handleEdit(member)} className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       Editar
@@ -119,7 +164,7 @@ export default function MembersPanel({ organizationId }: MembersPanelProps) {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-500">Nenhum membro encontrado.</td></tr>
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">Nenhum membro encontrado.</td></tr>
               )}
             </tbody>
           </table>

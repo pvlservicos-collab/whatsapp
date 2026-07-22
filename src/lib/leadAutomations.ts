@@ -1,8 +1,47 @@
 import { db } from '@/lib/db'
-import { leads, leadActivities, leadStageHistory, quickReplies, quickReplySteps, integrations } from '@/lib/schema'
+import { leads, leadActivities, leadStageHistory, quickReplies, quickReplySteps, integrations, organizationMembers } from '@/lib/schema'
 import { eq, and, or, ilike, isNull, asc } from 'drizzle-orm'
 import { publishEvent, channels, events } from '@/lib/realtime'
 import { getChannelAdapter } from '@/lib/channels/registry'
+
+const ONLINE_WINDOW_MS = 2 * 60 * 1000 // folga sobre o intervalo de ~45s do heartbeat (useHeartbeat.ts)
+
+/**
+ * Chamar sempre que um lead NOVO é criado (nunca em lead já existente). Distribui pra um
+ * membro com `participates_in_lead_distribution: true`: prioriza quem está online (heartbeat
+ * nos últimos 2min); se ninguém estiver online, distribui por igual entre todos os elegíveis.
+ * Em ambos os casos, escolhe quem está há mais tempo sem receber um lead automático
+ * (last_lead_assigned_at mais antigo, ou nunca recebeu) — round-robin de verdade baseado em
+ * "de quem é a vez", não na contagem total de leads (que já teria centenas de leads
+ * atribuídos manualmente antes dessa feature existir, e nunca ia se equilibrar por contagem
+ * bruta). Se não houver ninguém elegível, não faz nada (a regra de "primeira resposta vira
+ * dono" em chat/page.tsx continua como rede de segurança).
+ */
+export async function assignLeadOwner(organizationId: string, leadId: string) {
+  const eligible = await db.select({
+    id: organizationMembers.id,
+    lastActiveAt: organizationMembers.lastActiveAt,
+    lastLeadAssignedAt: organizationMembers.lastLeadAssignedAt,
+  }).from(organizationMembers)
+    .where(and(
+      eq(organizationMembers.organizationId, organizationId),
+      eq(organizationMembers.participatesInLeadDistribution, true),
+      eq(organizationMembers.status, 'active'),
+      isNull(organizationMembers.deletedAt),
+    ))
+  if (eligible.length === 0) return
+
+  const now = Date.now()
+  const online = eligible.filter(m => m.lastActiveAt && now - new Date(m.lastActiveAt).getTime() <= ONLINE_WINDOW_MS)
+  const candidates = online.length > 0 ? online : eligible
+
+  const turnRank = (m: (typeof candidates)[number]) => m.lastLeadAssignedAt ? new Date(m.lastLeadAssignedAt).getTime() : -1
+  const chosen = candidates.reduce((oldest, m) => turnRank(m) < turnRank(oldest) ? m : oldest)
+
+  await db.update(organizationMembers).set({ lastLeadAssignedAt: new Date() }).where(eq(organizationMembers.id, chosen.id))
+  await db.update(leads).set({ ownerMemberId: chosen.id, updatedAt: new Date() }).where(eq(leads.id, leadId))
+  await publishEvent(channels.orgLeads(organizationId), events.LEAD_UPDATED, { id: leadId })
+}
 
 /**
  * Etiqueta → etapa da pipeline "Atendimento WhatsApp". Ao aplicar a etiqueta no lead,

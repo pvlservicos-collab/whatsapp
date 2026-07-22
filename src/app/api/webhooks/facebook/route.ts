@@ -18,7 +18,9 @@ import { publishEvent, channels, events } from '@/lib/realtime'
 import { dispatchOutboundWebhook } from '@/lib/outbound-webhook'
 import { ORGANIZATION_ID } from '@/lib/automated-message'
 import { isUniqueViolation } from '@/lib/db-helpers'
+import { maybeEnqueueAgentTurn } from '@/lib/ai-agent'
 import { notifyInboundMessage } from '@/lib/push'
+import { assignLeadOwner } from '@/lib/leadAutomations'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -217,6 +219,9 @@ async function handleInstagramEntry(entry: any) {
         if (!raceLead) throw err
         leadId = raceLead.id
       }
+      if (leadId) {
+        await assignLeadOwner(orgId, leadId).catch(err => console.error('[lead-distribution] Falha ao atribuir dono (Instagram):', err))
+      }
     }
 
     let activity: { id: string }
@@ -410,6 +415,9 @@ export async function POST(req: NextRequest) {
         if (!raceLead) throw err
         leadId = raceLead.id
       }
+      if (leadId) {
+        await assignLeadOwner(orgId, leadId).catch(err => console.error('[lead-distribution] Falha ao atribuir dono (WhatsApp Cloud):', err))
+      }
     }
 
     let activity: { id: string }
@@ -450,6 +458,7 @@ export async function POST(req: NextRequest) {
 
     if (!isOutboundEcho) {
       after(() => notifyInboundMessage(orgId, leadId, { text: content, mediaType }))
+      after(() => maybeEnqueueAgentTurn({ orgId, leadId, phone, activityId: activity.id }).catch(err => console.error('[ai-agent] enqueue falhou (facebook):', err)))
     }
 
     await db.insert(integrationMessageLogs).values({

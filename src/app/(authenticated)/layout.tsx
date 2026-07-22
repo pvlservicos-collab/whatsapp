@@ -5,6 +5,7 @@ import { FilterProvider } from '@/contexts/FilterContext'
 import AuthGuard from '@/components/Auth/AuthGuard'
 import InstallAppBanner from '@/components/Shared/InstallAppBanner'
 import PushPermissionBanner from '@/components/Shared/PushPermissionBanner'
+import { useHeartbeat } from '@/hooks/useHeartbeat'
 
 /**
  * Layout for all authenticated pages (pipeline, chat, settings, etc.)
@@ -25,6 +26,7 @@ export default function AuthenticatedLayout({
 }: {
     children: React.ReactNode
 }) {
+    useHeartbeat(true)
     return (
         <AuthGuard>
             <FilterProvider>

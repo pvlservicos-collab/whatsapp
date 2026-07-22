@@ -5,6 +5,7 @@ import { LeadWithOwner, SearchHit } from '@/lib/types'
 import { MagnifyingGlass, PushPin, Archive, ArrowCounterClockwise, Tag as TagIcon, Check } from '@phosphor-icons/react'
 import LoadingSpinner from '@/components/Shared/LoadingSpinner'
 import { useSession } from 'next-auth/react'
+import { useAuth } from '@/hooks/useAuth'
 import { useLeadSearch } from '@/hooks/useLeadSearch'
 import { useTags } from '@/hooks'
 import { getLeadChannel } from '@/lib/leadChannel'
@@ -73,6 +74,8 @@ export default function LeadList({
   loading,
   organizationId,
 }: LeadListProps) {
+  const { currentOrganization } = useAuth()
+  const currentMemberId = currentOrganization?.id
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<ChatTab>('all')
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -358,8 +361,9 @@ export default function LeadList({
   // Arquivada some das outras abas (igual WhatsApp) — só a aba "Arquivados" mostra.
   const nonArchivedHits = filteredHits.filter((hit) => !hit.lead.is_archived)
 
-  const tabCounts: Record<ChatTab, number> = { all: nonArchivedHits.length, unread: 0, awaiting: 0, whatsapp: 0, instagram: 0, archived: 0 }
+  const tabCounts: Record<ChatTab, number> = { all: nonArchivedHits.length, mine: 0, unread: 0, awaiting: 0, whatsapp: 0, instagram: 0, archived: 0 }
   for (const hit of nonArchivedHits) {
+    if (currentMemberId && hit.lead.owner_member_id === currentMemberId) tabCounts.mine++
     if (hit.lead.is_unread) tabCounts.unread++
     if (hit.lead.last_message_sender_type === 'lead') tabCounts.awaiting++
     const channel = getLeadChannel(hit.lead)
@@ -373,6 +377,7 @@ export default function LeadList({
     : activeTab === 'all'
       ? nonArchivedHits
       : nonArchivedHits.filter((hit) => {
+          if (activeTab === 'mine') return !!currentMemberId && hit.lead.owner_member_id === currentMemberId
           if (activeTab === 'unread') return !!hit.lead.is_unread
           if (activeTab === 'awaiting') return hit.lead.last_message_sender_type === 'lead'
           return getLeadChannel(hit.lead) === activeTab

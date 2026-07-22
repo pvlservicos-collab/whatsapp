@@ -7,6 +7,8 @@ import {
   pgTable, pgEnum, uuid, text, boolean, integer, numeric,
   timestamp, jsonb, index, uniqueIndex, foreignKey, primaryKey,
 } from 'drizzle-orm/pg-core'
+// nota: 'vector' removido do import — pgvector nao esta habilitado no Postgres da VPS ainda.
+// Quando habilitar, reintroduzir import + tabela knowledge_chunks (ver git history / plano de infra).
 import { sql } from 'drizzle-orm'
 
 // ── Enums ────────────────────────────────────────────────────────────────────
@@ -82,6 +84,9 @@ export const organizationMembers = pgTable('organization_members', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
+  participatesInLeadDistribution: boolean('participates_in_lead_distribution').notNull().default(false),
+  lastLeadAssignedAt: timestamp('last_lead_assigned_at', { withTimezone: true }),
 })
 
 // ── Pipelines ─────────────────────────────────────────────────────────────────
@@ -491,6 +496,7 @@ export const quickReplies = pgTable('quick_replies', {
   mediaType: text('media_type'),
   mediaMimetype: text('media_mimetype'),
   mediaFilename: text('media_filename'),
+  tags: text('tags').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -569,4 +575,42 @@ export const expenses = pgTable('expenses', {
   parentDueDateUnique: uniqueIndex('expenses_parent_due_date_unique')
     .on(t.parentExpenseId, t.dueDate)
     .where(sql`${t.parentExpenseId} is not null and ${t.deletedAt} is null`),
+}))
+
+// ── Agente de IA — Base de Conhecimento (RAG) ──────────────────────────────────
+export const knowledgeDocumentStatusEnum = pgEnum('knowledge_document_status', ['pending', 'processing', 'ready', 'failed'])
+
+export const knowledgeDocuments = pgTable('knowledge_documents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  title: text('title').notNull(),
+  sourceType: text('source_type').notNull().default('text'),
+  rawContent: text('raw_content'),
+  fileUrl: text('file_url'),
+  status: knowledgeDocumentStatusEnum('status').notNull().default('pending'),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (t) => ({
+  orgIdx: index('knowledge_documents_org_idx').on(t.organizationId),
+}))
+
+// ── Agente de IA — Log de execução (auditoria/custo, não é o estado do debounce) ──
+export const aiAgentRunStatusEnum = pgEnum('ai_agent_run_status', ['completed', 'skipped_human_active', 'skipped_funnel_active', 'skipped_disabled', 'skipped_out_of_scope', 'error'])
+
+export const aiAgentRuns = pgTable('ai_agent_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  leadId: uuid('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  triggerActivityIds: jsonb('trigger_activity_ids').default([]),
+  status: aiAgentRunStatusEnum('status').notNull(),
+  model: text('model'),
+  toolCalls: jsonb('tool_calls').default([]),
+  escalated: boolean('escalated').notNull().default(false),
+  replyChunkCount: integer('reply_chunk_count').default(0),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  orgLeadIdx: index('ai_agent_runs_org_lead_idx').on(t.organizationId, t.leadId),
 }))

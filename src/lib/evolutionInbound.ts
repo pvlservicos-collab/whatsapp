@@ -7,6 +7,8 @@ import { dispatchOutboundWebhook } from '@/lib/outbound-webhook'
 import { downloadEvolutionMedia, fetchEvolutionProfilePicture } from '@/lib/evolution'
 import { isUniqueViolation } from '@/lib/db-helpers'
 import { notifyInboundMessage } from '@/lib/push'
+import { maybeEnqueueAgentTurn } from '@/lib/ai-agent'
+import { assignLeadOwner } from '@/lib/leadAutomations'
 
 // Processamento de uma mensagem Evolution/Baileys já reconhecida como conteúdo real
 // (não recibo de entrega/leitura) — compartilhado entre o webhook em tempo real
@@ -202,6 +204,8 @@ export async function processEvolutionMessage(
       if (!existingLead) throw err
       lead = existingLead
     }
+
+    await assignLeadOwner(orgId, lead.id).catch(err => console.error('[lead-distribution] Falha ao atribuir dono (Evolution):', err))
   }
 
   // Deduplicate by Evolution message ID
@@ -315,6 +319,7 @@ export async function processEvolutionMessage(
 
   if (!isFromMe) {
     after(() => notifyInboundMessage(orgId, lead.id, { text: extracted.text, mediaType: extracted.mediaType }))
+    after(() => maybeEnqueueAgentTurn({ orgId, leadId: lead.id, phone, activityId: activity.id }).catch(err => console.error('[ai-agent] enqueue falhou (evolution):', err)))
   }
 
   const chatLid = (!isGroup && key.addressingMode === 'lid' && remoteJid.endsWith('@lid')) ? remoteJid : null

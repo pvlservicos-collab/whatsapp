@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
         roleId: organizationMembers.roleId,
         status: organizationMembers.status,
         createdAt: organizationMembers.createdAt,
+        participatesInLeadDistribution: organizationMembers.participatesInLeadDistribution,
         fullName: profiles.fullName,
         avatarUrl: profiles.avatarUrl,
         email: users.email,
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
       role_id: r.roleId,
       status: r.status,
       created_at: r.createdAt,
+      participates_in_lead_distribution: r.participatesInLeadDistribution,
       profiles: { full_name: r.fullName, avatar_url: r.avatarUrl, email: r.email },
       organization_roles: { name: r.roleName },
     }))

@@ -6,7 +6,7 @@ import { leads, leadTags, tags, leadStageHistory, organizationMembers, profiles 
 import { eq, and, isNull, asc } from 'drizzle-orm'
 import { mapLead } from '@/lib/mappers'
 import { isUniqueViolation } from '@/lib/db-helpers'
-import { applyTagStageAutomation } from '@/lib/leadAutomations'
+import { applyTagStageAutomation, assignLeadOwner } from '@/lib/leadAutomations'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -76,6 +76,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           .returning()
 
         await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_CREATED, { id: created.id })
+        await assignLeadOwner(auth.organizationId, created.id).catch(err => console.error('[lead-distribution] Falha ao atribuir dono (auto-criação por telefone):', err))
         return Response.json({ data: created })
       } catch (err) {
         // leads_org_phone_unique cobre corrida entre duas requisições simultâneas
