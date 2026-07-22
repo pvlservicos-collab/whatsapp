@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Truck, Package, CurrencyDollar, Clock, MagnifyingGlass, Plus, Trash, WhatsappLogo, XCircle } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks'
+import { usePusherChannel } from '@/hooks/usePusher'
+import { channels } from '@/lib/realtime'
 import NotAuthorized from '@/components/Shared/NotAuthorized'
 import NovoPedidoModal from './NovoPedidoModal'
 import OrderDetailModal from './OrderDetailModal'
@@ -77,8 +79,11 @@ function formatDateTime(iso: string) {
 }
 
 export default function LogisticaPage() {
-  const { loading: authLoading, permissions, isMaster, roleName } = useAuth()
+  const { loading: authLoading, permissions, isMaster, roleName, organizationId } = useAuth()
   const isAdmin = isMaster || roleName?.toLowerCase() === 'administrador' || roleName?.toLowerCase() === 'owner'
+  // Cargos sem essa permissão veem a lista de pedidos normalmente, só sem faturamento/gráfico
+  // (padrão default-permissivo, igual aos outros flags — não muda nada pra quem já usa hoje).
+  const canViewFinancials = isAdmin || permissions?.settings?.view_logistica_financials !== false
   const searchParams = useSearchParams()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,6 +114,16 @@ export default function LogisticaPage() {
   }, [paymentFilter])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  // Sem isso, a tela só buscava os pedidos uma vez ao carregar — um pedido novo (criado
+  // pelo próprio usuário em outra aba, ou por uma colega) ficava invisível até um F5
+  // manual, mesmo já existindo no banco. Mesmo padrão de tempo real já usado no Chat.
+  usePusherChannel(organizationId ? channels.orgOrders(organizationId) : '', {
+    'order.created': () => fetchOrders(),
+    'order.updated': () => fetchOrders(),
+    'order.deleted': () => fetchOrders(),
+    '__reconnected': () => fetchOrders(),
+  })
 
   const handleDeliveryChange = async (orderId: string, newStatus: string) => {
     setUpdatingOrder(orderId)
@@ -217,15 +232,17 @@ export default function LogisticaPage() {
             </div>
             <p className="text-3xl font-bold text-gray-900">{pendingDeliveries}</p>
           </div>
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                <CurrencyDollar size={20} className="text-green-500" />
+          {canViewFinancials && (
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                  <CurrencyDollar size={20} className="text-green-500" />
+                </div>
+                <span className="text-sm font-medium text-gray-500">Faturamento (pago)</span>
               </div>
-              <span className="text-sm font-medium text-gray-500">Faturamento (pago)</span>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
-          </div>
+          )}
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -235,18 +252,20 @@ export default function LogisticaPage() {
             </div>
             <p className="text-3xl font-bold text-gray-900">{orders.length}</p>
           </div>
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
-                <XCircle size={20} className="text-red-500" />
+          {canViewFinancials && (
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                  <XCircle size={20} className="text-red-500" />
+                </div>
+                <span className="text-sm font-medium text-gray-500">Taxa de cancelamento</span>
               </div>
-              <span className="text-sm font-medium text-gray-500">Taxa de cancelamento</span>
+              <p className="text-3xl font-bold text-gray-900">{cancellationRate.toFixed(1).replace('.', ',')}%</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{cancellationRate.toFixed(1).replace('.', ',')}%</p>
-          </div>
+          )}
         </div>
 
-        <OrderStatusChart orders={orders} />
+        {canViewFinancials && <OrderStatusChart orders={orders} />}
 
         {/* Abas: pendentes (padrão) / entregues / cancelados — evita misturar pedido já
             resolvido (entregue ou cancelado) com o que ainda falta entregar, que era o

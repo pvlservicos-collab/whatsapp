@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowSquareOut, PencilSimple } from '@phosphor-icons/react'
+import { ArrowSquareOut, PencilSimple, WarningCircle } from '@phosphor-icons/react'
 import { LeadWithOwner } from '@/lib/types'
 import { PAYMENT_STATUS_META, DELIVERY_STATUS_META, TONE_STYLES } from '@/lib/orderStatus'
 import OrderDetailModal, { OrderDetail } from '@/app/(authenticated)/logistica/OrderDetailModal'
@@ -22,6 +22,13 @@ function formatCurrency(value: string | number) {
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
+
+// Etapa "COMPROU (EM ROTA)" do Pipeline — o lead pode chegar aqui tanto pela etiqueta
+// automática "COMPROU (rota)" (ver src/lib/leadAutomations.ts) quanto por arrasto manual
+// no board do Pipeline. Os dois caminhos "fecham" o negócio aos olhos de quem vende, mas
+// nenhum dos dois cria o pedido sozinho — só o botão "Marcar venda concluída" faz isso.
+// Checar pela ETAPA (não pela etiqueta) cobre os dois jeitos de chegar nesse estado.
+const COMPROU_STAGE_ID = '8a7e342d-278b-46c2-88b9-af6d1bd6fe3a'
 
 interface LeadOrderCardProps {
   lead: LeadWithOwner
@@ -51,7 +58,19 @@ export default function LeadOrderCard({ lead, refreshKey }: LeadOrderCardProps) 
 
   useEffect(() => { fetchOrders() }, [fetchOrders, refreshKey])
 
-  if (loading || orders.length === 0) return null
+  if (loading) return null
+
+  if (orders.length === 0) {
+    if (lead.stage_id !== COMPROU_STAGE_ID) return null
+    return (
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2">
+        <WarningCircle size={16} weight="fill" className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-600">
+          Lead está na etapa "Comprou", mas ainda sem pedido registrado. Clique em "Marcar venda concluída" abaixo pra ele aparecer na Logística.
+        </p>
+      </div>
+    )
+  }
 
   const latest = orders[0]
   const mainItem = latest.items[0]?.product_name || '—'

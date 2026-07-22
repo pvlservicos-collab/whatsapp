@@ -166,6 +166,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id: order.leadId })
     }
 
+    // Avisa quem estiver com a tela de Logística aberta — mesmo motivo do POST.
+    await publishEvent(channels.orgOrders(auth.organizationId), events.ORDER_UPDATED, { id: order.id })
+
     return Response.json({ data: {
       id: order.id,
       payment_method: order.paymentMethod,
@@ -205,6 +208,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       .returning()
 
     if (!order) return apiError(404, 'Pedido não encontrado.')
+
+    await publishEvent(channels.orgOrders(auth.organizationId), events.ORDER_DELETED, { id: order.id })
+
     return Response.json({ success: true })
   } catch (err: any) {
     return apiError(err.status || 500, err.message || 'Erro interno.')

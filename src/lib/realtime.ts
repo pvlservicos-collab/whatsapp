@@ -65,6 +65,7 @@ export const channels = {
   orgLeads: (orgId: string) => `org-${orgId}`,
   stageLeads: (stageId: string) => `stage-${stageId}`,
   orgMembers: (orgId: string) => `members-${orgId}`,
+  orgOrders: (orgId: string) => `orders-${orgId}`,
 }
 
 // ── Eventos disponíveis ───────────────────────────────────────────────────────
@@ -77,4 +78,7 @@ export const events = {
   MEMBER_UPDATED: 'member.updated',
   PIN_CREATED: 'pin.created',
   PIN_DELETED: 'pin.deleted',
+  ORDER_CREATED: 'order.created',
+  ORDER_UPDATED: 'order.updated',
+  ORDER_DELETED: 'order.deleted',
 }

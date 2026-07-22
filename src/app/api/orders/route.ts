@@ -200,6 +200,10 @@ export async function POST(req: NextRequest) {
       await publishEvent(channels.orgLeads(auth.organizationId), events.LEAD_UPDATED, { id: body.lead_id })
     }
 
+    // Avisa quem estiver com a tela de Logística aberta — sem isso o pedido só aparecia
+    // depois de um F5 manual na página, já que ela buscava a lista uma vez só ao carregar.
+    await publishEvent(channels.orgOrders(auth.organizationId), events.ORDER_CREATED, { id: order.id })
+
     return Response.json({ data: toSnake(order, insertedItems) }, { status: 201 })
   } catch (err: any) {
     return apiError(err.status || 500, err.message || 'Erro interno.')
