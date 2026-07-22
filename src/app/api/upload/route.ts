@@ -37,7 +37,11 @@ export async function POST(req: NextRequest) {
 
     if (!filename || typeof filename !== 'string') return apiError(400, 'Nome de arquivo inválido.')
 
-    if (limits.allowedTypes && !limits.allowedTypes.includes(contentType)) {
+    // MediaRecorder do navegador manda o tipo com parâmetro de codec junto
+    // (ex: "audio/webm;codecs=opus") — compara só a parte antes do ";", senão todo
+    // áudio gravado no Chrome/Edge é rejeitado aqui (já aconteceu em produção).
+    const baseContentType = typeof contentType === 'string' ? contentType.split(';')[0].trim() : contentType
+    if (limits.allowedTypes && !limits.allowedTypes.includes(baseContentType)) {
       return apiError(400, `Tipo de arquivo não permitido: ${contentType}`)
     }
 
