@@ -216,7 +216,7 @@ Nome da cliente (se já souber): ${lead.title || 'ainda não informado'}
 Horário atual em Manaus: ${hourManaus}h — se essa for a primeira mensagem da
 conversa, a saudação certa agora é "${saudacao}".`
 
-  const pendingMedia: { mediaUrl: string; mediaType: string; content: string }[] = []
+  const pendingMedia: { mediaUrl: string | null; mediaType: string | null; content: string; delaySeconds: number }[] = []
 
   let result
   try {
@@ -283,8 +283,15 @@ conversa, a saudação certa agora é "${saudacao}".`
   // antes do texto final ser montado), mesmo quando o prompt manda se apresentar
   // em texto primeiro. Visto em produção (22/07): áudio chegando sem nenhuma
   // introdução antes, "sem nexo" pra quem recebe.
-  for (const item of pendingMedia) {
+  //
+  // Cada passo respeita o delaySeconds configurado na resposta rápida (mesmo padrão
+  // de sendPosVendaMessage em leadAutomations.ts) — sem isso, uma sequência pensada
+  // com pausas (áudio, fotos uma a uma, comentário) chega tudo de uma vez, "em
+  // rajada". Visto em produção (23/07): 1 áudio + 4 fotos sem pausa nenhuma entre
+  // elas, porque a pausa configurada era descartada junto com o texto dos passos.
+  for (let i = 0; i < pendingMedia.length; i++) {
     if (await humanRepliedSince()) break
+    const item = pendingMedia[i]
 
     await sendLeadMessage({
       organizationId: orgId,
@@ -293,10 +300,13 @@ conversa, a saudação certa agora é "${saudacao}".`
       type: 'whatsapp',
       source: 'ai_agent',
       direction: 'outbound',
-      mediaUrl: item.mediaUrl,
-      mediaType: item.mediaType,
+      ...(item.mediaUrl ? { mediaUrl: item.mediaUrl, mediaType: item.mediaType || undefined } : {}),
     })
     actuallySent++
+
+    if (i < pendingMedia.length - 1 && item.delaySeconds > 0) {
+      await new Promise(r => setTimeout(r, item.delaySeconds * 1000))
+    }
   }
 
   await logRun(orgId, leadId, triggerActivityIds, 'completed', undefined, MODEL, result.steps?.reduce((n, s) => n + (s.toolCalls?.length || 0), 0), actuallySent)

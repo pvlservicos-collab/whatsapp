@@ -4,8 +4,8 @@ import { db } from '@/lib/db'
 import { products, quickReplies, quickReplySteps, leads, leadActivities, integrations } from '@/lib/schema'
 import { eq, and, isNull, sql } from 'drizzle-orm'
 
-type PendingMediaItem = { mediaUrl: string; mediaType: string; content: string }
-type ToolCtx = { organizationId: string; leadId: string; phone: string; pendingMedia: PendingMediaItem[] }
+type PendingStep = { mediaUrl: string | null; mediaType: string | null; content: string; delaySeconds: number }
+type ToolCtx = { organizationId: string; leadId: string; phone: string; pendingMedia: PendingStep[] }
 
 /**
  * Ferramentas do agente de vendas. Duas categorias, nunca misturadas (ver plano):
@@ -18,7 +18,7 @@ type ToolCtx = { organizationId: string; leadId: string; phone: string; pendingM
 export function buildAgentTools(ctx: ToolCtx) {
   return {
     search_media: tool({
-      description: 'Busca e ENVIA um áudio/foto/vídeo real da biblioteca de prova social por tema/dor específica (ex: "conexao", "boas-vindas", "barriga", "ceticismo"). O arquivo é enviado diretamente pro WhatsApp da cliente — não descreva o conteúdo em texto, o próprio arquivo é a resposta.',
+      description: 'Busca e ENVIA um áudio/foto/vídeo real (às vezes com mensagens de texto próprias intercaladas) da biblioteca de prova social por tema/dor específica (ex: "conexao", "boas-vindas", "barriga", "ceticismo"). A sequência inteira é enviada diretamente pro WhatsApp da cliente, na ordem e no ritmo já configurados — não descreva o conteúdo em texto, a própria sequência é a resposta. Se o retorno vier com ends_with_text:true, a sequência já termina com uma pergunta/comentário de fechamento — não escreva outra pergunta parecida por conta própria no mesmo turno.',
       inputSchema: z.object({
         tema: z.string().describe('Tema/dor específica buscada, ex: "conexao", "barriga", "ceticismo"'),
         tipo: z.enum(['audio', 'image', 'video']).optional(),
@@ -44,17 +44,27 @@ export function buildAgentTools(ctx: ToolCtx) {
           .where(eq(quickReplySteps.quickReplyId, qr.id))
           .orderBy(quickReplySteps.position)
 
-        const itemsToSend = steps.length > 0
-          ? steps.filter(s => s.mediaUrl).map(s => ({ mediaUrl: s.mediaUrl!, mediaType: s.mediaType || 'image', content: s.content || '' }))
-          : (qr.mediaUrl ? [{ mediaUrl: qr.mediaUrl, mediaType: qr.mediaType || 'image', content: '' }] : [])
+        // Mantém a sequência INTEIRA como quem montou a resposta rápida escreveu —
+        // texto e mídia intercalados, cada um com seu delaySeconds — em vez de só
+        // filtrar os passos com mídia e jogar fora texto/pausa (bug real visto em
+        // produção 23/07: 1 áudio + 4 fotos chegavam tudo de uma vez, sem pausa
+        // nenhuma, porque só a mídia sobrevivia e o delay configurado era ignorado).
+        const itemsToSend: PendingStep[] = steps.length > 0
+          ? steps.map(s => ({ mediaUrl: s.mediaUrl || null, mediaType: s.mediaUrl ? (s.mediaType || 'image') : null, content: s.content || '', delaySeconds: s.delaySeconds || 0 }))
+          : (qr.mediaUrl ? [{ mediaUrl: qr.mediaUrl, mediaType: qr.mediaType || 'image', content: '', delaySeconds: 0 }] : [])
 
-        // Não envia aqui — só reserva. Se mandássemos na hora, a mídia sempre chegaria
-        // antes do texto final (que só é montado depois que todas as ferramentas
-        // terminam), mesmo quando o prompt manda se apresentar em texto primeiro.
-        // runAgentTurn manda o texto final e só depois esvazia essa fila, nessa ordem.
+        // Não envia aqui — só reserva. Se mandássemos na hora, chegaria sempre antes
+        // do texto final (que só é montado depois que todas as ferramentas terminam),
+        // mesmo quando o prompt manda se apresentar em texto primeiro. runAgentTurn
+        // manda o texto final e só depois esvazia essa fila, respeitando cada delay.
         ctx.pendingMedia.push(...itemsToSend)
 
-        return { sent: true, shortcut: qr.shortcut, items: itemsToSend.length }
+        // Sinaliza pro modelo se a sequência já termina em texto (ex: uma pergunta de
+        // fechamento) — se sim, o prompt instrui a não escrever outra pergunta parecida
+        // por conta própria no mesmo turno, pra não duplicar.
+        const endsWithText = itemsToSend.length > 0 && !itemsToSend[itemsToSend.length - 1].mediaUrl
+
+        return { sent: true, shortcut: qr.shortcut, items: itemsToSend.length, ends_with_text: endsWithText }
       },
     }),
 
