@@ -84,7 +84,7 @@ async function resetSession(orgId: string, leadId: string) {
 
   const [lead] = await db.select({ customAttributes: leads.customAttributes }).from(leads).where(eq(leads.id, leadId)).limit(1)
   const current = (lead?.customAttributes || {}) as Record<string, any>
-  const { ai_funnel_stage, ...rest } = current
+  const { ai_funnel_stage, ai_sent_media_shortcuts, ...rest } = current
 
   await db.update(leads).set({
     customAttributes: { ...rest, ai_session_started_at: new Date().toISOString() },

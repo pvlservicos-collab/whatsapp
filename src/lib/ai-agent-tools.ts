@@ -18,12 +18,22 @@ type ToolCtx = { organizationId: string; leadId: string; phone: string; pendingM
 export function buildAgentTools(ctx: ToolCtx) {
   return {
     search_media: tool({
-      description: 'Busca e ENVIA um áudio/foto/vídeo real (às vezes com mensagens de texto próprias intercaladas) da biblioteca de prova social por tema/dor específica (ex: "conexao", "boas-vindas", "barriga", "ceticismo"). A sequência inteira é enviada diretamente pro WhatsApp da cliente, na ordem e no ritmo já configurados — não descreva o conteúdo em texto, a própria sequência é a resposta. Se o retorno vier com ends_with_text:true, a sequência já termina com uma pergunta/comentário de fechamento — não escreva outra pergunta parecida por conta própria no mesmo turno.',
+      description: 'Busca e ENVIA um áudio/foto/vídeo real (às vezes com mensagens de texto próprias intercaladas) da biblioteca de prova social por tema/dor específica (ex: "conexao", "boas-vindas", "barriga", "ceticismo"). A sequência inteira é enviada diretamente pro WhatsApp da cliente, na ordem e no ritmo já configurados — não descreva o conteúdo em texto, a própria sequência é a resposta. Se o retorno vier com ends_with_text:true, a sequência já termina com uma pergunta/comentário de fechamento — não escreva outra pergunta parecida por conta própria no mesmo turno. Se vier sent:false porque já foi enviada antes nessa mesma conversa, não chame de novo pro mesmo tema e não fale sobre essa mídia — siga só em texto ou tente um tema diferente.',
       inputSchema: z.object({
         tema: z.string().describe('Tema/dor específica buscada, ex: "conexao", "barriga", "ceticismo"'),
         tipo: z.enum(['audio', 'image', 'video']).optional(),
       }),
       execute: async ({ tema, tipo }) => {
+        // Trava de verdade contra repetir mídia na mesma sessão — não dá pra confiar
+        // só na instrução do prompt ("não repita a mesma mídia"), porque o histórico
+        // que o modelo vê a cada novo turno reconstrói mensagens de mídia com content
+        // vazio (não tem texto), então o modelo não enxerga na própria memória que já
+        // mandou aquele áudio. Bug real visto em produção (23/07): mesmo áudio de
+        // boas-vindas enviado de novo no turno seguinte, depois da cliente responder.
+        const [leadRow] = await db.select({ customAttributes: leads.customAttributes }).from(leads).where(eq(leads.id, ctx.leadId)).limit(1)
+        const attrs = (leadRow?.customAttributes || {}) as Record<string, any>
+        const alreadySent: string[] = attrs.ai_sent_media_shortcuts || []
+
         const rows = await db.select({
           id: quickReplies.id, shortcut: quickReplies.shortcut,
           mediaUrl: quickReplies.mediaUrl, mediaType: quickReplies.mediaType,
@@ -40,6 +50,11 @@ export function buildAgentTools(ctx: ToolCtx) {
         if (rows.length === 0) return { sent: false, reason: `Nenhuma mídia encontrada pro tema "${tema}".` }
 
         const qr = rows[0]
+
+        if (alreadySent.includes(qr.shortcut)) {
+          return { sent: false, reason: `Essa mídia ("${qr.shortcut}") já foi enviada nessa conversa — não repita, e não fale sobre ela de novo.` }
+        }
+
         const steps = await db.select().from(quickReplySteps)
           .where(eq(quickReplySteps.quickReplyId, qr.id))
           .orderBy(quickReplySteps.position)
@@ -58,6 +73,10 @@ export function buildAgentTools(ctx: ToolCtx) {
         // mesmo quando o prompt manda se apresentar em texto primeiro. runAgentTurn
         // manda o texto final e só depois esvazia essa fila, respeitando cada delay.
         ctx.pendingMedia.push(...itemsToSend)
+
+        await db.update(leads)
+          .set({ customAttributes: { ...attrs, ai_sent_media_shortcuts: [...alreadySent, qr.shortcut] } })
+          .where(eq(leads.id, ctx.leadId))
 
         // Sinaliza pro modelo se a sequência já termina em texto (ex: uma pergunta de
         // fechamento) — se sim, o prompt instrui a não escrever outra pergunta parecida
